@@ -1913,14 +1913,10 @@
             );
         };
 
-        const Notifikasi = ({ onNavigate }) => {
+        const Notifikasi = ({ onNavigate, notifications = [], onNotificationClick }) => {
             const [filter, setFilter] = useState('all');
-            const notifications = [
-                { id: 1, title: 'Diskusi Baru', desc: 'Siti Aminah mengomentari diskusi tentang "Driver Printer HP"', time: '2m lalu', type: 'message' },
-                { id: 2, title: 'Upgrade Keahlian', desc: 'Selamat! Poin keahlian IT Support Anda meningkat', time: '1j lalu', type: 'award' },
-                { id: 3, title: 'Update Sistem', desc: 'Versi 2.0.1 telah dirilis dengan fitur Analisa AI', time: '5j lalu', type: 'info' }
-            ];
 
+            // Filter logic
             const filtered = filter === 'all' ? notifications : notifications.filter(n => n.type === filter);
 
             return (
@@ -1947,7 +1943,9 @@
                             <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
                                 {filtered.length === 0 && <div style={{ color: 'var(--text-gray)', textAlign: 'center', marginTop: 40 }}>Tidak ada notifikasi di kategori ini.</div>}
                                 {filtered.map(n => (
-                                    <div key={n.id} className="card" style={{ display: 'flex', gap: 16, alignItems: 'center', margin: 0 }}>
+                                    <div key={n.id} className="card"
+                                        onClick={() => onNotificationClick && onNotificationClick(n)}
+                                        style={{ display: 'flex', gap: 16, alignItems: 'center', margin: 0, cursor: 'pointer', borderLeft: n.unread ? '3px solid var(--primary)' : 'none' }}>
                                         <div style={{ width: 44, height: 44, borderRadius: 12, background: 'rgba(255,255,255,0.05)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--primary)', flexShrink: 0 }}>
                                             <Icon name={n.type === 'message' ? 'message-square' : n.type === 'award' ? 'award' : 'bell'} />
                                         </div>
@@ -2352,11 +2350,16 @@
         };
 
         // --- Bidang Detail Screen (The "New Bar" View) ---
-        const BidangDetail = ({ bidang, onBack, currentUserName, onAddKnowledge, categoryData, onUpdateCategoryData }) => {
+        const BidangDetail = ({ bidang, onBack, currentUserName, onAddKnowledge, categoryData, onUpdateCategoryData, addNotification }) => {
             const [activeTab, setActiveTab] = useState('diskusi');
             const [msg, setMsg] = useState('');
             const [showMemberSelector, setShowMemberSelector] = useState(false);
             const inputRef = React.useRef(null);
+
+            // State for Expert Tab
+            const [expertPostText, setExpertPostText] = useState('');
+            const [commentInputs, setCommentInputs] = useState({}); // Mapping postId -> text
+            const [visibleComments, setVisibleComments] = useState({}); // Mapping postId -> boolean
 
             const { discussions, chatMessages } = categoryData;
 
@@ -2640,23 +2643,153 @@
                                 )}
                                 {activeTab === 'ahli' && (
                                     <div className="animate">
-                                        <h3 style={{ marginBottom: 16, fontSize: 16 }}>Konsultasi Ahli</h3>
-                                        <div className="card" style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 24 }}>
-                                            <div style={{ width: 44, height: 44, borderRadius: '50%', background: 'linear-gradient(45deg, #10B981, #3B82F6)' }}></div>
-                                            <div style={{ flex: 1 }}>
-                                                <div style={{ fontWeight: 600 }}>Budi Santoso</div>
-                                                <div style={{ fontSize: 12, color: 'var(--text-gray)' }}>Senior {bidang.name} Expert</div>
+                                        <h3 style={{ marginBottom: 16, fontSize: 16 }}>Konsultasi & Diskusi Ahli</h3>
+
+                                        {/* Input Baru */}
+                                        <div className="card" style={{ marginBottom: 24, padding: 16 }}>
+                                            <div style={{ display: 'flex', gap: 12 }}>
+                                                <div style={{ width: 40, height: 40, borderRadius: '50%', background: 'var(--primary)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white' }}>
+                                                    <Icon name="user" size={20} />
+                                                </div>
+                                                <div style={{ flex: 1 }}>
+                                                    <textarea
+                                                        placeholder={`Bagikan pemikiran atau materi ahli di bidang ${bidang.name}...`}
+                                                        value={expertPostText}
+                                                        onChange={(e) => setExpertPostText(e.target.value)}
+                                                        style={{ width: '100%', background: 'transparent', border: 'none', color: 'white', resize: 'none', minHeight: 60, outline: 'none', fontSize: 14 }}
+                                                    />
+                                                    <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 8 }}>
+                                                        <button
+                                                            onClick={() => {
+                                                                if (!expertPostText.trim()) return;
+                                                                const newPost = {
+                                                                    id: Date.now(),
+                                                                    user: currentUserName || "Anda",
+                                                                    role: "Ahli",
+                                                                    content: expertPostText,
+                                                                    timestamp: new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }),
+                                                                    comments: []
+                                                                };
+                                                                onUpdateCategoryData(bidang.name, {
+                                                                    ...categoryData,
+                                                                    expertPosts: [newPost, ...(categoryData.expertPosts || [])]
+                                                                });
+                                                                setExpertPostText('');
+
+                                                                // Trigger Notification
+                                                                if (addNotification) {
+                                                                    addNotification({
+                                                                        title: 'Materi Ahli Baru',
+                                                                        desc: `${currentUserName || 'Seseorang'} menambahkan materi di ${bidang.name}`,
+                                                                        type: 'message',
+                                                                        target: 'bidang',
+                                                                        targetId: bidang.name
+                                                                    });
+                                                                }
+                                                            }}
+                                                            style={{ padding: '8px 16px', background: 'var(--primary)', color: 'white', border: 'none', borderRadius: 8, cursor: 'pointer', fontWeight: 600, fontSize: 13 }}
+                                                        >
+                                                            Posting
+                                                        </button>
+                                                    </div>
+                                                </div>
                                             </div>
-                                            <button style={{ padding: '8px 12px', background: 'rgba(16, 185, 129, 0.1)', border: '1px solid rgba(16, 185, 129, 0.2)', borderRadius: 10, color: '#10B981', fontSize: 12, fontWeight: 600 }}>Hubungi</button>
                                         </div>
-                                        <div style={{ borderTop: '1px solid var(--border)', paddingTop: 24 }}>
-                                            <h4 style={{ fontSize: 14, marginBottom: 16, color: 'var(--text-gray)' }}>Percakapan Publik</h4>
-                                            <div style={{ display: 'flex', flexDirection: 'column' }}>
-                                                {chatMessages.map((cm, i) => (
-                                                    <ChatMessage key={i} user={cm.user} text={cm.text} time={cm.time} />
-                                                ))}
+
+                                        {/* Daftar Postingan Ahli */}
+                                        {(categoryData.expertPosts || []).length === 0 && <div style={{ textAlign: 'center', color: 'var(--text-gray)' }}>Belum ada diskusi ahli dimulai.</div>}
+
+                                        {(categoryData.expertPosts || []).map(post => (
+                                            <div key={post.id} className="card" style={{ marginBottom: 16, position: 'relative' }}>
+                                                <div style={{ display: 'flex', gap: 12, marginBottom: 12 }}>
+                                                    <div style={{ width: 40, height: 40, borderRadius: '50%', background: 'linear-gradient(45deg, #10B981, #3B82F6)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white', fontWeight: 'bold' }}>
+                                                        {post.user[0]}
+                                                    </div>
+                                                    <div style={{ flex: 1 }}>
+                                                        <div style={{ fontWeight: 600 }}>{post.user} {post.role === 'Ahli' && <Icon name="check-circle" size={12} fill="#3B82F6" color="white" />}</div>
+                                                        <div style={{ fontSize: 12, color: 'var(--text-gray)' }}>{post.timestamp}</div>
+                                                    </div>
+                                                    <button
+                                                        onClick={() => {
+                                                            if (confirm('Hapus postingan ini?')) {
+                                                                const updated = (categoryData.expertPosts || []).filter(p => p.id !== post.id);
+                                                                onUpdateCategoryData(bidang.name, { ...categoryData, expertPosts: updated });
+                                                            }
+                                                        }}
+                                                        style={{ background: 'transparent', border: 'none', cursor: 'pointer', padding: 4, opacity: 0.5 }}
+                                                    >
+                                                        <Icon name="trash-2" size={16} color="#EF4444" />
+                                                    </button>
+                                                </div>
+
+                                                <div style={{ fontSize: 14, lineHeight: 1.5, marginBottom: 16, whiteSpace: 'pre-wrap' }}>
+                                                    {post.content}
+                                                </div>
+
+                                                <div style={{ borderTop: '1px solid rgba(255,255,255,0.1)', paddingTop: 12, display: 'flex', alignItems: 'center', gap: 16 }}>
+                                                    <div
+                                                        onClick={() => setVisibleComments(prev => ({ ...prev, [post.id]: !prev[post.id] }))}
+                                                        style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 13, color: 'var(--text-gray)', cursor: 'pointer' }}
+                                                    >
+                                                        <Icon name="message-circle" size={18} /> {post.comments?.length || 0} Komentar
+                                                    </div>
+                                                </div>
+
+                                                {/* Komentar Section */}
+                                                {visibleComments[post.id] && (
+                                                    <div className="animate" style={{ marginTop: 16, paddingLeft: 16, borderLeft: '2px solid rgba(255,255,255,0.1)' }}>
+                                                        <div style={{ display: 'flex', flexDirection: 'column', gap: 12, marginBottom: 16 }}>
+                                                            {(post.comments || []).map(c => (
+                                                                <div key={c.id} style={{ fontSize: 13 }}>
+                                                                    <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                                                                        <span style={{ fontWeight: 700, color: '#ddd' }}>{c.user}</span>
+                                                                        <span style={{ fontSize: 10, color: 'var(--text-gray)' }}>{c.timestamp}</span>
+                                                                    </div>
+                                                                    <div style={{ color: 'var(--text-gray)' }}>{c.text}</div>
+                                                                </div>
+                                                            ))}
+                                                        </div>
+
+                                                        <div style={{ display: 'flex', gap: 8 }}>
+                                                            <input
+                                                                type="text"
+                                                                placeholder="Tulis komentar..."
+                                                                value={commentInputs[post.id] || ''}
+                                                                onChange={e => setCommentInputs(prev => ({ ...prev, [post.id]: e.target.value }))}
+                                                                style={{ flex: 1, padding: '8px 12px', borderRadius: 20, background: 'rgba(255,255,255,0.05)', border: 'none', color: 'white', fontSize: 13 }}
+                                                                onKeyDown={(e) => {
+                                                                    if (e.key === 'Enter') {
+                                                                        const txt = commentInputs[post.id];
+                                                                        if (!txt?.trim()) return;
+                                                                        const newComment = { id: Date.now(), user: currentUserName || 'Anda', text: txt, timestamp: 'Baru saja' };
+
+                                                                        const updatedPosts = categoryData.expertPosts.map(p => {
+                                                                            if (p.id === post.id) {
+                                                                                return { ...p, comments: [...(p.comments || []), newComment] };
+                                                                            }
+                                                                            return p;
+                                                                        });
+
+                                                                        onUpdateCategoryData(bidang.name, { ...categoryData, expertPosts: updatedPosts });
+                                                                        setCommentInputs(prev => ({ ...prev, [post.id]: '' }));
+
+                                                                        if (addNotification) {
+                                                                            addNotification({
+                                                                                title: 'Komentar Baru',
+                                                                                desc: `${currentUserName || 'Seseorang'} mengomentari materi di ${bidang.name}`,
+                                                                                type: 'message',
+                                                                                target: 'bidang',
+                                                                                targetId: bidang.name
+                                                                            });
+                                                                        }
+                                                                    }
+                                                                }}
+                                                            />
+                                                        </div>
+                                                    </div>
+                                                )}
                                             </div>
-                                        </div>
+                                        ))}
                                     </div>
                                 )}
                             </div>
@@ -3623,6 +3756,18 @@
             return rolePermissions.includes(action);
         };
 
+        // Global Categories Data (Shared)
+        const CATEGORIES_DATA = [
+            { name: 'Hardware', icon: '🖥️', color: '#3B82F6' },
+            { name: 'Software', icon: '💿', color: '#8B5CF6' },
+            { name: 'Network', icon: '🌐', color: '#10B981' },
+            { name: 'Security', icon: '🛡️', color: '#EF4444' },
+            { name: 'Database', icon: '🗄️', color: '#F59E0B' },
+            { name: 'Development', icon: '⚡', color: '#EC4899' },
+            { name: 'Runtimes', icon: '🚀', color: '#F59E0B' },
+            { name: 'Cloud', icon: '☁️', color: '#0EA5E9' }
+        ];
+
         // --- MAIN APP ---
         function App() {
             // Always force splash screen on first load
@@ -3637,8 +3782,12 @@
             const [selectedBidang, setSelectedBidang] = useState(null);
 
             // Load Knowledge Base & Category Data from Redis
+            // Load Knowledge Base & Category Data from Redis
             const [knowledge, setKnowledge] = useState(() => redis.get('knowledge', KNOWLEDGE_BASE));
             const [categoryData, setCategoryData] = useState(() => redis.get('categoryData', {}));
+            const [notifications, setNotifications] = useState(() => redis.get('notifications', [
+                { id: 1, title: 'Selamat Datang', desc: 'Sistem siap digunakan.', time: 'Baru saja', type: 'info', target: 'home' }
+            ]));
 
             // Redis Persistence Effect (Auto-Save)
             useEffect(() => {
@@ -3649,7 +3798,25 @@
                 redis.set('isPrivate', isPrivate);
                 redis.set('knowledge', knowledge);
                 redis.set('categoryData', categoryData);
-            }, [screen, tab, userName, isPrivate, knowledge, categoryData]);
+                redis.set('notifications', notifications);
+            }, [screen, tab, userName, isPrivate, knowledge, categoryData, notifications]);
+
+            const addNotification = (notif) => {
+                const newNotif = { ...notif, id: Date.now(), time: 'Baru saja', unread: true };
+                setNotifications(prev => [newNotif, ...prev]);
+            };
+
+            const handleNotificationClick = (n) => {
+                if (n.target === 'bidang') {
+                    const targetBidang = CATEGORIES_DATA.find(c => c.name === n.targetId);
+                    if (targetBidang) {
+                        setSelectedBidang(targetBidang);
+                        setTab('home'); // Pastikan tab home aktif karena BidangDetail di render di sana
+                    }
+                } else {
+                    setTab(n.target || 'home');
+                }
+            };
 
             const handleAddKnowledge = (newItem) => {
                 setKnowledge(prev => {
@@ -3836,6 +4003,7 @@
                                     onAddKnowledge={handleAddKnowledge}
                                     categoryData={getCategoryData(selectedBidang.name)}
                                     onUpdateCategoryData={handleUpdateCategoryData}
+                                    addNotification={addNotification}
                                 />
                             ) : (
                                 <Bidang
@@ -3848,7 +4016,13 @@
                         {/* Persistent Tabs (Instant Access) */}
                         <div style={{ display: tab === 'pesan' ? 'block' : 'none' }}><Pesan userName={userName} onNavigate={(target) => setTab(target)} /></div>
                         <div style={{ display: tab === 'anggota' ? 'block' : 'none' }}><Anggota isPrivateMode={isPrivate} /></div>
-                        <div style={{ display: tab === 'notif' ? 'block' : 'none' }}><Notifikasi onNavigate={(target) => setTab(target)} /></div>
+                        <div style={{ display: tab === 'notif' ? 'block' : 'none' }}>
+                            <Notifikasi
+                                onNavigate={(target) => setTab(target)}
+                                notifications={notifications}
+                                onNotificationClick={handleNotificationClick}
+                            />
+                        </div>
                         <div style={{ display: tab === 'profil' ? 'block' : 'none' }}>
                             <Profil
                                 userName={userName}
