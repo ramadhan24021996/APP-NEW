@@ -124,8 +124,8 @@
         }
 
         .page-header {
-            padding: clamp(30px, 6vw, 50px) var(--gap-responsive);
-            border-radius: 0 0 var(--radius-lg) var(--radius-lg);
+            padding: clamp(10px, 3vw, 15px) var(--gap-responsive);
+            border-radius: 0 0 var(--radius-md) var(--radius-md);
             position: relative;
         }
 
@@ -1294,24 +1294,240 @@
 
         // Auth Screen
         const Auth = ({ onLogin }) => {
-            const [name, setName] = useState('');
-            const [email, setEmail] = useState('');
-            const [isLogin, setIsLogin] = useState(false);
-            const [socialType, setSocialType] = useState(null); // 'google' or 'microsoft'
+            // Initialize Language from LocalStorage
+            const [lang, setLang] = useState(() => localStorage.getItem('app_lang') || 'id');
+            const [authMode, setAuthMode] = useState('login'); // 'login', 'register', 'forgot_email', 'forgot_otp', 'forgot_reset'
 
-            // Force full width centering by removing sidebar padding
+            // Remember Me State
+            const [rememberMe, setRememberMe] = useState(() => {
+                const saved = localStorage.getItem('bb_remember_me');
+                return saved === 'true';
+            });
+
+            // Form States - Initialize from saved credentials if Remember Me is enabled
+            const [name, setName] = useState('');
+            const [email, setEmail] = useState(() => {
+                if (localStorage.getItem('bb_remember_me') === 'true') {
+                    return localStorage.getItem('bb_saved_email') || '';
+                }
+                return '';
+            });
+            const [password, setPassword] = useState(() => {
+                if (localStorage.getItem('bb_remember_me') === 'true') {
+                    return localStorage.getItem('bb_saved_password') || '';
+                }
+                return '';
+            });
+            const [confirmPassword, setConfirmPassword] = useState('');
+            const [otp, setOtp] = useState('');
+            const [generatedOtp, setGeneratedOtp] = useState(null);
+            const [showPassword, setShowPassword] = useState(false); // State for toggle visibility
+
+            // Auth Mode: 'login', 'register', 'forgot_email', 'forgot_otp', 'forgot_reset'
+            const [socialType, setSocialType] = useState(null);
+
+            // Persist Language to LocalStorage
+            useEffect(() => {
+                localStorage.setItem('app_lang', lang);
+            }, [lang]);
+
+            // Translation Dictionary
+            const text = {
+                id: {
+                    title_page: "Belajar Bersama - Masuk",
+                    title_login: "Selamat Datang!",
+                    title_register: "Buat Akun Baru",
+                    subtitle_login: "Masuk ke akun Anda",
+                    subtitle_register: "Buat akun gratis sekarang",
+
+                    // Forgot Password Titles
+                    title_forgot: "Lupa Kata Sandi",
+                    title_otp: "Verifikasi OTP",
+                    title_reset: "Atur Ulang Kata Sandi",
+                    subtitle_forgot: "Masukkan email untuk menerima kode OTP",
+                    subtitle_otp: "Kode OTP telah dikirim ke email Anda",
+                    subtitle_reset: "Masukkan kata sandi baru Anda",
+
+                    placeholder_name: "Nama Lengkap",
+                    placeholder_email: "Email",
+                    placeholder_password: "Kata Sandi",
+                    placeholder_confirm: "Konfirmasi Kata Sandi",
+                    placeholder_otp: "Kode OTP (6 Digit)",
+
+                    btn_login: "Masuk",
+                    btn_register: "Daftar Sekarang",
+                    btn_send_otp: "Kirim Kode OTP",
+                    btn_verify: "Verifikasi",
+                    btn_reset: "Simpan Kata Sandi",
+
+                    link_forgot: "Lupa Kata Sandi?",
+                    text_agree: "Saya setuju dengan",
+                    text_terms: "Ketentuan Layanan",
+                    text_no_account: "Belum punya akun? ",
+                    text_have_account: "Sudah punya akun? ",
+                    link_register: "Daftar",
+                    link_login: "Masuk",
+                    or: "Atau",
+                    back: "Kembali",
+                    login_with: "Masuk dengan",
+                    social_signin: "Masuk",
+                    remember_me: "Ingat Saya",
+
+                    alert_required: "Email dan Kata Sandi wajib diisi",
+                    alert_name: "Nama Lengkap wajib diisi",
+                    alert_match: "Konfirmasi kata sandi tidak cocok",
+                    alert_short: "Kata sandi minimal 6 karakter",
+                    alert_email_not_found: "Email tidak terdaftar!",
+                    alert_otp_sent: "Kode OTP: ",
+                    alert_otp_invalid: "Kode OTP salah!",
+                    alert_reset_success: "Kata sandi berhasil diubah! Silakan login."
+                },
+                en: {
+                    title_page: "Belajar Bersama - Login",
+                    title_login: "Welcome Back!",
+                    title_register: "Create New Account",
+                    subtitle_login: "Sign in to your account",
+                    subtitle_register: "Create your free account",
+
+                    // Forgot Password Titles
+                    title_forgot: "Forgot Password",
+                    title_otp: "Verify OTP",
+                    title_reset: "Reset Password",
+                    subtitle_forgot: "Enter email to receive OTP code",
+                    subtitle_otp: "OTP code sent to your email",
+                    subtitle_reset: "Enter your new password",
+
+                    placeholder_name: "Full Name",
+                    placeholder_email: "Email Address",
+                    placeholder_password: "Password",
+                    placeholder_confirm: "Confirm Password",
+                    placeholder_otp: "OTP Code (6 Digits)",
+
+                    btn_login: "Sign In",
+                    btn_register: "Register Now",
+                    btn_send_otp: "Send OTP Code",
+                    btn_verify: "Verify",
+                    btn_reset: "Save Password",
+
+                    link_forgot: "Forgot Password?",
+                    text_agree: "I agree to the",
+                    text_terms: "Terms of Service",
+                    text_no_account: "Don't have an account? ",
+                    text_have_account: "Already have an account? ",
+                    link_register: "Sign Up",
+                    link_login: "Sign In",
+                    or: "Or",
+                    back: "Back",
+                    login_with: "Login with",
+                    social_signin: "Sign In",
+                    remember_me: "Remember Me",
+
+                    alert_required: "Email and Password are required",
+                    alert_name: "Full Name is required",
+                    alert_match: "Passwords do not match",
+                    alert_short: "Password must be at least 6 chars",
+                    alert_email_not_found: "Email not registered!",
+                    alert_otp_sent: "OTP Code: ",
+                    alert_otp_invalid: "Invalid OTP Code!",
+                    alert_reset_success: "Password reset successful! Please login."
+                }
+            };
+
+            const t = text[lang];
+
+            // Update Page Title based on Language
+            useEffect(() => {
+                const mapTitle = {
+                    'login': t.title_login,
+                    'register': t.title_register,
+                    'forgot_email': t.title_forgot,
+                    'forgot_otp': t.title_otp,
+                    'forgot_reset': t.title_reset
+                };
+                document.title = (mapTitle[authMode] || t.title_page);
+            }, [lang, authMode, t]);
+
+            const handleLoginSubmit = () => {
+                if (!email || !password) { alert(t.alert_required); return; }
+
+                // Save credentials if Remember Me is checked
+                if (rememberMe) {
+                    localStorage.setItem('bb_remember_me', 'true');
+                    localStorage.setItem('bb_saved_email', email);
+                    localStorage.setItem('bb_saved_password', password);
+                } else {
+                    localStorage.removeItem('bb_remember_me');
+                    localStorage.removeItem('bb_saved_email');
+                    localStorage.removeItem('bb_saved_password');
+                }
+
+                onLogin({ name, email, password, isRegister: false });
+            };
+
+            const handleRegisterSubmit = () => {
+                if (!email || !password) { alert(t.alert_required); return; }
+                if (!name) { alert(t.alert_name); return; }
+                if (password !== confirmPassword) { alert(t.alert_match); return; }
+                if (password.length < 6) { alert(t.alert_short); return; }
+                onLogin({ name, email, password, isRegister: true });
+            };
+
+            const handleSendOtp = () => {
+                if (!email) { alert("Email wajib diisi"); return; }
+
+                // Check DB using redis helper
+                const users = redis.get('users_db', []);
+                const user = users.find(u => u.email === email);
+
+                if (!user) {
+                    alert(t.alert_email_not_found);
+                    return;
+                }
+
+                // Generate OTP
+                const code = Math.floor(100000 + Math.random() * 900000).toString();
+                setGeneratedOtp(code);
+                alert(`${t.alert_otp_sent} ${code}`); // Simulate Email Sending
+                setAuthMode('forgot_otp');
+            };
+
+            const handleVerifyOtp = () => {
+                if (otp === generatedOtp) {
+                    setAuthMode('forgot_reset');
+                } else {
+                    alert(t.alert_otp_invalid);
+                }
+            };
+
+            const handleResetPassword = () => {
+                if (password.length < 6) { alert(t.alert_short); return; }
+                if (password !== confirmPassword) { alert(t.alert_match); return; }
+
+                // Update Password in DB using redis
+                const users = redis.get('users_db', []);
+                const updatedUsers = users.map(u => {
+                    if (u.email === email) {
+                        return { ...u, password: password };
+                    }
+                    return u;
+                });
+                redis.set('users_db', updatedUsers);
+
+                alert(t.alert_reset_success);
+                setAuthMode('login');
+                setPassword('');
+                setConfirmPassword('');
+                setOtp('');
+            };
+
+            // Force full width centering
             useEffect(() => {
                 const root = document.getElementById('root');
-                const originalStyle = root.style.paddingLeft;
-
-                // Force reset padding
                 root.style.paddingLeft = '0px';
                 root.style.justifyContent = 'center';
-
                 return () => {
-                    // Restore on cleanup
                     root.style.paddingLeft = '';
-                    root.style.justifyContent = ''; // Reset to default
+                    root.style.justifyContent = '';
                 };
             }, []);
 
@@ -1337,117 +1553,61 @@
                 opacity: 0.6
             };
 
-            // Social Login Mockup (Based on Image)
+            // Social Login Screen (Simulated)
             if (socialType) {
                 return (
                     <div className="auth-screen animate" style={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        padding: '20px'
+                        display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px'
                     }}>
                         <div style={{
-                            background: 'rgba(255,255,255,0.03)',
-                            backdropFilter: 'blur(30px) saturate(150%)',
-                            padding: '40px',
-                            borderRadius: '32px',
-                            border: '1px solid rgba(255,255,255,0.1)',
-                            boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.5)',
-                            width: '100%',
-                            maxWidth: '420px',
-                            textAlign: 'center'
+                            background: 'rgba(255,255,255,0.03)', backdropFilter: 'blur(30px) saturate(150%)',
+                            padding: '40px', borderRadius: '32px', border: '1px solid rgba(255,255,255,0.1)',
+                            boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.5)', width: '100%', maxWidth: '420px', textAlign: 'center'
                         }}>
-                            <h2 style={{
-                                color: 'white',
-                                fontSize: '28px',
-                                textAlign: 'center',
-                                marginBottom: '24px',
-                                fontWeight: '800'
-                            }}>
-                                Login {socialType === 'google' ? 'Google' : 'Microsoft'}
+                            <h2 style={{ color: 'white', fontSize: '28px', marginBottom: '24px', fontWeight: '800' }}>
+                                {t.login_with} {socialType === 'google' ? 'Google' : 'Microsoft'}
                             </h2>
 
                             <div style={{ marginBottom: '20px', textAlign: 'left' }}>
                                 <label style={{ display: 'block', color: 'rgba(255,255,255,0.6)', marginBottom: '8px', fontSize: '13px', fontWeight: '600' }}>Email</label>
-                                <input
-                                    type="email"
-                                    value={email}
-                                    onChange={e => setEmail(e.target.value)}
-                                    style={{
-                                        width: '100%',
-                                        padding: '14px',
-                                        background: 'rgba(255,255,255,0.05)',
-                                        border: '1px solid rgba(255,255,255,0.1)',
-                                        borderRadius: '12px',
-                                        outline: 'none',
-                                        color: 'white'
-                                    }}
-                                />
+                                <input type="email" value={email} onChange={e => setEmail(e.target.value)} style={{ width: '100%', padding: '14px', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '12px', outline: 'none', color: 'white' }} />
                             </div>
 
                             <div style={{ marginBottom: '24px', textAlign: 'left' }}>
-                                <label style={{ display: 'block', color: 'rgba(255,255,255,0.6)', marginBottom: '8px', fontSize: '13px', fontWeight: '600' }}>Password</label>
-                                <input
-                                    type="password"
-                                    style={{
-                                        width: '100%',
-                                        padding: '14px',
-                                        background: 'rgba(255,255,255,0.05)',
-                                        border: '1px solid rgba(255,255,255,0.1)',
-                                        borderRadius: '12px',
-                                        outline: 'none',
-                                        color: 'white'
-                                    }}
-                                />
+                                <label style={{ display: 'block', color: 'rgba(255,255,255,0.6)', marginBottom: '8px', fontSize: '13px', fontWeight: '600' }}>{t.placeholder_password}</label>
+                                <input type="password" style={{ width: '100%', padding: '14px', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '12px', outline: 'none', color: 'white' }} />
                             </div>
 
                             <div style={{ textAlign: 'center' }}>
-                                <button
-                                    onClick={() => onLogin(email.split('@')[0] || (socialType === 'google' ? 'Google User' : 'Microsoft User'))}
-                                    style={{
-                                        background: '#3b82f6',
-                                        color: 'white',
-                                        padding: '10px 24px',
-                                        borderRadius: '6px',
-                                        border: 'none',
-                                        fontWeight: '600',
-                                        cursor: 'pointer',
-                                        marginBottom: '12px'
-                                    }}>
-                                    Sign In
+                                <button onClick={() => onLogin({ name: email.split('@')[0] || (socialType === 'google' ? 'Pengguna Google' : 'Pengguna Microsoft'), email, password, isRegister: false })}
+                                    style={{ background: '#3b82f6', color: 'white', padding: '10px 24px', borderRadius: '6px', border: 'none', fontWeight: '600', cursor: 'pointer', marginBottom: '12px' }}>
+                                    {t.social_signin}
                                 </button>
-                                <div style={{ color: '#6b7280', fontSize: '14px', marginBottom: '12px' }}>Atau</div>
-                                <button
-                                    onClick={() => setSocialType(null)}
+                                <div style={{ color: '#6b7280', fontSize: '14px', marginBottom: '12px' }}>{t.or}</div>
+
+                                {/* Direct Google Login Button Requested by User */}
+                                <button onClick={() => onLogin({
+                                    name: socialType === 'google' ? 'Pengguna Google' : 'Pengguna Microsoft',
+                                    email: (socialType === 'google' ? 'google' : 'microsoft') + '_user@example.com',
+                                    password: 'social_login_pass',
+                                    isRegister: false,
+                                    isSocial: true
+                                })}
                                     style={{
                                         background: socialType === 'google' ? '#dc2626' : '#2563eb',
-                                        color: 'white',
-                                        padding: '10px 20px',
-                                        borderRadius: '6px',
-                                        border: 'none',
-                                        fontWeight: '500',
-                                        cursor: 'pointer',
-                                        display: 'flex',
-                                        alignItems: 'center',
-                                        justifyContent: 'center',
-                                        gap: '10px',
-                                        width: '100%'
+                                        color: 'white', padding: '10px 20px', borderRadius: '6px', border: 'none', fontWeight: '500',
+                                        cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '10px', width: '100%'
                                     }}>
                                     {socialType === 'google' ? (
-                                        <svg width="20" height="20" viewBox="0 0 24 24" fill="white">
-                                            <path d="M12.48 10.92v3.28h7.84c-.24 1.84-.92 3.2-1.84 4.32-1.04 1.28-2.6 2.4-5.44 2.4-4.8 0-8.68-3.88-8.68-8.68s3.88-8.68 8.68-8.68c2.6 0 4.56.92 6 2.32l2.32-2.32C21.04 1.28 17.6 0 12.4 0 5.6 0 0 5.48 0 12.4s5.6 12.4 12.4 12.4c3.6 0 6.36-1.2 8.52-3.44 2.24-2.24 2.8-5.36 2.8-7.88 0-.52-.04-1.04-.12-1.56H12.48z" />
-                                        </svg>
+                                        <svg width="20" height="20" viewBox="0 0 24 24" fill="white"><path d="M12.48 10.92v3.28h7.84c-.24 1.84-.92 3.2-1.84 4.32-1.04 1.28-2.6 2.4-5.44 2.4-4.8 0-8.68-3.88-8.68-8.68s3.88-8.68 8.68-8.68c2.6 0 4.56.92 6 2.32l2.32-2.32C21.04 1.28 17.6 0 12.4 0 5.6 0 0 5.48 0 12.4s5.6 12.4 12.4 12.4c3.6 0 6.36-1.2 8.52-3.44 2.24-2.24 2.8-5.36 2.8-7.88 0-.52-.04-1.04-.12-1.56H12.48z" /></svg>
                                     ) : (
-                                        <svg width="20" height="20" viewBox="0 0 23 23">
-                                            <path fill="#f3f3f3" d="M0 0h11v11H0z" /><path fill="#f3f3f3" d="M12 0h11v11H12z" /><path fill="#f3f3f3" d="M0 12h11v11H0z" /><path fill="#f3f3f3" d="M12 12h11v11H12z" /><path fill="#f25022" d="M1 1h9v9H1z" /><path fill="#7fba00" d="M13 1h9v9h-9z" /><path fill="#00a4ef" d="M1 13h9v9H1z" /><path fill="#ffb900" d="M13 13h9v9h-9z" />
-                                        </svg>
+                                        <svg width="20" height="20" viewBox="0 0 21 21" fill="white"><rect x="1" y="1" width="9" height="9" fill="white" /><rect x="11" y="1" width="9" height="9" fill="white" /><rect x="1" y="11" width="9" height="9" fill="white" /><rect x="11" y="11" width="9" height="9" fill="white" /></svg>
                                     )}
-                                    Login dengan {socialType === 'google' ? 'Google' : 'Microsoft'}
+                                    {t.login_with} {socialType === 'google' ? 'Google' : 'Microsoft'}
                                 </button>
-                                <button
-                                    onClick={() => setSocialType(null)}
-                                    style={{ background: 'none', border: 'none', color: '#3b82f6', marginTop: '16px', cursor: 'pointer', fontSize: '14px' }}>
-                                    Kembali
+
+                                <button onClick={() => setSocialType(null)} style={{ background: 'none', border: 'none', color: '#3b82f6', marginTop: '16px', cursor: 'pointer', fontSize: '14px' }}>
+                                    {t.back}
                                 </button>
                             </div>
                         </div>
@@ -1458,208 +1618,242 @@
             return (
                 <Background3D color1="#7c3aed" color2="#ec4899">
                     <div className="auth-screen animate">
-                        {/* Main Card Container */}
                         <div style={{
-                            position: 'relative',
-                            zIndex: 1,
-                            background: 'rgba(255,255,255,0.03)',
-                            backdropFilter: 'blur(30px) saturate(150%)',
-                            borderRadius: 24,
-                            padding: '30px',
-                            border: '1px solid rgba(255,255,255,0.1)',
-                            boxShadow: '0 25px 50px -12px rgba(0,0,0,0.5)',
-                            maxWidth: 360,
-                            width: '100%',
-                            maxHeight: '90vh',
-                            display: 'flex',
-                            flexDirection: 'column',
-                            justifyContent: 'center'
+                            position: 'relative', zIndex: 1, background: 'rgba(255,255,255,0.03)', backdropFilter: 'blur(30px) saturate(150%)',
+                            borderRadius: 24, padding: '30px', border: '1px solid rgba(255,255,255,0.1)', boxShadow: '0 25px 50px -12px rgba(0,0,0,0.5)',
+                            maxWidth: 360, width: '100%', maxHeight: '90vh', display: 'flex', flexDirection: 'column', justifyContent: 'center'
                         }}>
-                            {/* Header */}
+                            {/* Language Selector */}
+                            <div style={{ position: 'absolute', top: 20, right: 20, zIndex: 10 }}>
+                                <select
+                                    onChange={(e) => setLang(e.target.value)}
+                                    value={lang}
+                                    style={{
+                                        background: 'rgba(0,0,0,0.3)', color: 'white', border: '1px solid rgba(255,255,255,0.2)',
+                                        borderRadius: 6, padding: '4px 8px', fontSize: 12, cursor: 'pointer', outline: 'none'
+                                    }}>
+                                    <option value="id">🇮🇩 ID</option>
+                                    <option value="en">🇬🇧 EN</option>
+                                </select>
+                            </div>
+
                             <div style={{ textAlign: 'center', marginBottom: 20, flexShrink: 0 }}>
                                 <div style={{
-                                    width: 60,
-                                    height: 60,
-                                    margin: '0 auto 10px',
-                                    background: 'linear-gradient(145deg, #7c3aed, #4f46e5)',
-                                    borderRadius: 10,
-                                    display: 'flex',
-                                    alignItems: 'center',
-                                    justifyContent: 'center',
-                                    fontSize: 32,
+                                    width: 60, height: 60, margin: '0 auto 10px', background: 'linear-gradient(145deg, #7c3aed, #4f46e5)',
+                                    borderRadius: 10, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 32,
                                     boxShadow: '0 15px 35px rgba(99, 102, 241, 0.5), inset 0 -4px 12px rgba(0,0,0,0.2), inset 0 4px 12px rgba(255,255,255,0.2)',
-                                    transform: 'perspective(500px) rotateX(5deg)',
-                                    border: '2px solid rgba(255,255,255,0.15)',
-                                    overflow: 'hidden'
+                                    transform: 'perspective(500px) rotateX(5deg)', border: '2px solid rgba(255,255,255,0.15)', overflow: 'hidden'
                                 }}>
                                     <img src="RAMA.jpeg" alt="Logo" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                                 </div>
                                 <h1 style={{
-                                    fontSize: '28px',
-                                    fontWeight: '900',
-                                    color: '#FF4D4D',
+                                    fontSize: '24px', fontWeight: '900', color: '#FF4D4D',
                                     textShadow: '1px 1px 0 #C70039, 2px 2px 0 #900C3F, 3px 3px 0 #581845, 4px 4px 10px rgba(0,0,0,0.5)',
-                                    marginBottom: 4,
-                                    letterSpacing: '2px',
-                                    textTransform: 'uppercase'
-                                }}>{isLogin ? 'Selamat Datang!' : 'SIGN UP'}</h1>
+                                    marginBottom: 4, letterSpacing: '2px', textTransform: 'uppercase'
+                                }}>
+                                    {authMode === 'login' ? t.title_login :
+                                        authMode === 'register' ? t.title_register :
+                                            authMode === 'forgot_email' ? t.title_forgot :
+                                                authMode === 'forgot_otp' ? t.title_otp : t.title_reset}
+                                </h1>
                                 <p style={{ color: 'rgba(255,255,255,0.5)', fontSize: 13 }}>
-                                    {isLogin ? 'Masuk ke akun Anda' : 'Buat akun gratis sekarang'}
+                                    {authMode === 'login' ? t.subtitle_login :
+                                        authMode === 'register' ? t.subtitle_register :
+                                            authMode === 'forgot_email' ? t.subtitle_forgot :
+                                                authMode === 'forgot_otp' ? t.subtitle_otp : t.subtitle_reset}
                                 </p>
                             </div>
 
-                            {/* Social Login */}
-                            <div style={{ display: 'flex', gap: 10, marginBottom: 20 }}>
-                                <button
-                                    onClick={() => setSocialType('google')}
-                                    style={{
-                                        flex: 1,
-                                        padding: '12px',
-                                        background: '#dc2626',
-                                        border: 'none',
-                                        borderRadius: 12,
-                                        color: 'white',
-                                        cursor: 'pointer',
-                                        display: 'flex',
-                                        alignItems: 'center',
-                                        justifyContent: 'center',
-                                        gap: 8,
-                                        fontSize: 13,
-                                        fontWeight: 500,
-                                        fontFamily: 'inherit',
-                                        transition: 'all 0.2s'
-                                    }}>
-                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="white">
-                                        <path d="M12.48 10.92v3.28h7.84c-.24 1.84-.92 3.2-1.84 4.32-1.04 1.28-2.6 2.4-5.44 2.4-4.8 0-8.68-3.88-8.68-8.68s3.88-8.68 8.68-8.68c2.6 0 4.56.92 6 2.32l2.32-2.32C21.04 1.28 17.6 0 12.4 0 5.6 0 0 5.48 0 12.4s5.6 12.4 12.4 12.4c3.6 0 6.36-1.2 8.52-3.44 2.24-2.24 2.8-5.36 2.8-7.88 0-.52-.04-1.04-.12-1.56H12.48z" />
-                                    </svg>
-                                    <span>Google</span>
-                                </button>
-                                <button
-                                    onClick={() => setSocialType('microsoft')}
-                                    style={{
-                                        flex: 1,
-                                        padding: '12px',
-                                        background: '#2563eb',
-                                        border: 'none',
-                                        borderRadius: 12,
-                                        color: 'white',
-                                        cursor: 'pointer',
-                                        display: 'flex',
-                                        alignItems: 'center',
-                                        justifyContent: 'center',
-                                        gap: 8,
-                                        fontSize: 13,
-                                        fontWeight: 500,
-                                        fontFamily: 'inherit',
-                                        transition: 'all 0.2s'
-                                    }}>
-                                    <svg width="14" height="14" viewBox="0 0 21 21" fill="white">
-                                        <rect x="1" y="1" width="9" height="9" fill="white" />
-                                        <rect x="11" y="1" width="9" height="9" fill="white" />
-                                        <rect x="1" y="11" width="9" height="9" fill="white" />
-                                        <rect x="11" y="11" width="9" height="9" fill="white" />
-                                    </svg>
-                                    <span>Microsoft</span>
-                                </button>
-                            </div>
+                            {/* Standard Login/Register Fields */}
+                            {(authMode === 'login' || authMode === 'register') && (
+                                <>
+                                    <div style={{ display: 'flex', gap: 10, marginBottom: 20 }}>
+                                        <button onClick={() => setSocialType('google')} style={{ flex: 1, padding: '12px', background: '#dc2626', border: 'none', borderRadius: 12, color: 'white', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, fontSize: 13, fontWeight: 500, fontFamily: 'inherit', transition: 'all 0.2s' }}>
+                                            <svg width="14" height="14" viewBox="0 0 24 24" fill="white"><path d="M12.48 10.92v3.28h7.84c-.24 1.84-.92 3.2-1.84 4.32-1.04 1.28-2.6 2.4-5.44 2.4-4.8 0-8.68-3.88-8.68-8.68s3.88-8.68 8.68-8.68c2.6 0 4.56.92 6 2.32l2.32-2.32C21.04 1.28 17.6 0 12.4 0 5.6 0 0 5.48 0 12.4s5.6 12.4 12.4 12.4c3.6 0 6.36-1.2 8.52-3.44 2.24-2.24 2.8-5.36 2.8-7.88 0-.52-.04-1.04-.12-1.56H12.48z" /></svg>
+                                            <span>Google</span>
+                                        </button>
+                                        <button onClick={() => setSocialType('microsoft')} style={{ flex: 1, padding: '12px', background: '#2563eb', border: 'none', borderRadius: 12, color: 'white', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, fontSize: 13, fontWeight: 500, fontFamily: 'inherit', transition: 'all 0.2s' }}>
+                                            <svg width="14" height="14" viewBox="0 0 21 21" fill="white"><rect x="1" y="1" width="9" height="9" fill="white" /><rect x="11" y="1" width="9" height="9" fill="white" /><rect x="1" y="11" width="9" height="9" fill="white" /><rect x="11" y="11" width="9" height="9" fill="white" /></svg>
+                                            <span>Microsoft</span>
+                                        </button>
+                                    </div>
 
-                            {/* Divider */}
-                            <div style={{ display: 'flex', alignItems: 'center', gap: 12, margin: '20px 0' }}>
-                                <div style={{ flex: 1, height: 1, background: 'rgba(255,255,255,0.1)' }}></div>
-                                <span style={{ color: 'rgba(255,255,255,0.4)', fontSize: 11, textTransform: 'uppercase', letterSpacing: 1 }}>atau</span>
-                                <div style={{ flex: 1, height: 1, background: 'rgba(255,255,255,0.1)' }}></div>
-                            </div>
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: 12, margin: '20px 0' }}>
+                                        <div style={{ flex: 1, height: 1, background: 'rgba(255,255,255,0.1)' }}></div>
+                                        <span style={{ color: 'rgba(255,255,255,0.4)', fontSize: 11, textTransform: 'uppercase', letterSpacing: 1 }}>{t.or}</span>
+                                        <div style={{ flex: 1, height: 1, background: 'rgba(255,255,255,0.1)' }}></div>
+                                    </div>
 
-                            {/* Form Fields */}
-                            {!isLogin && (
-                                <div style={{ position: 'relative', marginBottom: 14 }}>
-                                    <span style={{ ...labelIconStyle, filter: 'drop-shadow(0 2px 3px rgba(0,0,0,0.3))' }}>
-                                        <Icon name="user" size={20} />
-                                    </span>
-                                    <input
-                                        type="text"
-                                        placeholder="Nama Lengkap"
-                                        value={name}
-                                        onChange={e => setName(e.target.value)}
-                                        style={inputStyle}
-                                        onKeyDown={(e) => e.key === "Enter" && onLogin(name || email)}
-                                    />
+                                    {authMode === 'register' && (
+                                        <div style={{ position: 'relative', marginBottom: 14 }}>
+                                            <span style={{ ...labelIconStyle }}><Icon name="user" size={20} /></span>
+                                            <input type="text" placeholder={t.placeholder_name} value={name} onChange={e => setName(e.target.value)} style={inputStyle} />
+                                        </div>
+                                    )}
+
+                                    <div style={{ position: 'relative', marginBottom: 14 }}>
+                                        <span style={{ ...labelIconStyle }}><Icon name="mail" size={20} /></span>
+                                        <input type="email" placeholder={t.placeholder_email} value={email} onChange={e => setEmail(e.target.value)} style={inputStyle} />
+                                    </div>
+
+                                    <div style={{ position: 'relative', marginBottom: authMode === 'register' ? 14 : 8 }}>
+                                        <span style={{ ...labelIconStyle }}><Icon name="lock" size={20} /></span>
+                                        <input
+                                            type={showPassword ? "text" : "password"}
+                                            placeholder={t.placeholder_password}
+                                            value={password}
+                                            onChange={e => setPassword(e.target.value)}
+                                            style={inputStyle}
+                                        />
+                                        <span
+                                            onClick={() => setShowPassword(!showPassword)}
+                                            style={{
+                                                position: 'absolute',
+                                                right: 16,
+                                                top: '50%',
+                                                transform: 'translateY(-50%)',
+                                                cursor: 'pointer',
+                                                opacity: 0.6,
+                                                color: 'white'
+                                            }}>
+                                            <Icon name={showPassword ? "eye" : "eye-off"} size={18} />
+                                        </span>
+                                    </div>
+
+                                    {authMode === 'register' && (
+                                        <div style={{ position: 'relative', marginBottom: 8 }}>
+                                            <span style={{ ...labelIconStyle }}><Icon name="check-circle" size={20} /></span>
+                                            <input
+                                                type={showPassword ? "text" : "password"}
+                                                placeholder={t.placeholder_confirm}
+                                                value={confirmPassword}
+                                                onChange={e => setConfirmPassword(e.target.value)}
+                                                style={inputStyle}
+                                            />
+                                        </div>
+                                    )}
+
+                                    {authMode === 'login' && (
+                                        <div style={{
+                                            display: 'flex',
+                                            justifyContent: 'space-between',
+                                            alignItems: 'center',
+                                            marginBottom: 16,
+                                            marginTop: 4
+                                        }}>
+                                            <label style={{
+                                                display: 'flex',
+                                                alignItems: 'center',
+                                                gap: 8,
+                                                cursor: 'pointer'
+                                            }}>
+                                                <input
+                                                    type="checkbox"
+                                                    checked={rememberMe}
+                                                    onChange={e => setRememberMe(e.target.checked)}
+                                                    style={{
+                                                        width: 16,
+                                                        height: 16,
+                                                        accentColor: '#6366f1',
+                                                        borderRadius: 4,
+                                                        cursor: 'pointer'
+                                                    }}
+                                                />
+                                                <span style={{
+                                                    fontSize: 12,
+                                                    color: 'rgba(255,255,255,0.6)'
+                                                }}>
+                                                    {t.remember_me || 'Ingat Saya'}
+                                                </span>
+                                            </label>
+                                            <span
+                                                onClick={() => setAuthMode('forgot_email')}
+                                                style={{
+                                                    color: '#6366f1',
+                                                    fontSize: 12,
+                                                    cursor: 'pointer',
+                                                    fontWeight: 500
+                                                }}
+                                            >
+                                                {t.link_forgot}
+                                            </span>
+                                        </div>
+                                    )}
+
+                                    {authMode === 'register' && (
+                                        <label style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 12, marginBottom: 16, cursor: 'pointer' }}>
+                                            <input type="checkbox" style={{ width: 18, height: 18, accentColor: '#6366f1', borderRadius: 4 }} />
+                                            <span style={{ fontSize: 12, color: 'rgba(255,255,255,0.5)', lineHeight: 1.4 }}>
+                                                {t.text_agree} <span style={{ color: '#6366f1' }}>{t.text_terms}</span>
+                                            </span>
+                                        </label>
+                                    )}
+
+                                    <button onClick={authMode === 'login' ? handleLoginSubmit : handleRegisterSubmit}
+                                        style={{
+                                            width: '100%', padding: '16px', background: 'linear-gradient(135deg, #6366f1, #8b5cf6)',
+                                            border: 'none', borderRadius: 14, color: 'white', fontSize: 15, fontWeight: 600,
+                                            cursor: 'pointer', boxShadow: '0 8px 24px rgba(99, 102, 241, 0.35)',
+                                            transition: 'all 0.3s ease', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8
+                                        }}>
+                                        {authMode === 'login' ? t.btn_login : t.btn_register} <Icon name="arrow-right" size={18} />
+                                    </button>
+                                </>
+                            )}
+
+                            {/* Forgot Password Flow */}
+                            {authMode === 'forgot_email' && (
+                                <div>
+                                    <div style={{ position: 'relative', marginBottom: 20 }}>
+                                        <span style={{ ...labelIconStyle }}><Icon name="mail" size={20} /></span>
+                                        <input type="email" placeholder={t.placeholder_email} value={email} onChange={e => setEmail(e.target.value)} style={inputStyle} />
+                                    </div>
+                                    <button onClick={handleSendOtp} style={{ width: '100%', padding: '16px', background: '#6366f1', color: 'white', border: 'none', borderRadius: 14, cursor: 'pointer', fontWeight: 600 }}>
+                                        {t.btn_send_otp}
+                                    </button>
+                                    <button onClick={() => setAuthMode('login')} style={{ width: '100%', marginTop: 10, background: 'none', border: 'none', color: 'white', cursor: 'pointer' }}>
+                                        {t.back}
+                                    </button>
                                 </div>
                             )}
 
-                            <div style={{ position: 'relative', marginBottom: 14 }}>
-                                <span style={{ ...labelIconStyle, filter: 'drop-shadow(0 2px 3px rgba(0,0,0,0.3))' }}>
-                                    <Icon name="mail" size={20} />
-                                </span>
-                                <input
-                                    type="email"
-                                    placeholder="Email"
-                                    value={email}
-                                    onChange={e => setEmail(e.target.value)}
-                                    style={inputStyle}
-                                    onKeyDown={(e) => e.key === "Enter" && onLogin(name || email)}
-                                />
-                            </div>
+                            {authMode === 'forgot_otp' && (
+                                <div>
+                                    <div style={{ position: 'relative', marginBottom: 20 }}>
+                                        <span style={{ ...labelIconStyle }}><Icon name="key" size={20} /></span>
+                                        <input type="text" placeholder={t.placeholder_otp} value={otp} onChange={e => setOtp(e.target.value)} style={inputStyle} />
+                                    </div>
+                                    <button onClick={handleVerifyOtp} style={{ width: '100%', padding: '16px', background: '#6366f1', color: 'white', border: 'none', borderRadius: 14, cursor: 'pointer', fontWeight: 600 }}>
+                                        {t.btn_verify}
+                                    </button>
+                                </div>
+                            )}
 
-                            <div style={{ position: 'relative', marginBottom: 8 }}>
-                                <span style={{ ...labelIconStyle, filter: 'drop-shadow(0 2px 3px rgba(0,0,0,0.3))' }}>
-                                    <Icon name="lock" size={20} />
-                                </span>
-                                <input
-                                    type="password"
-                                    placeholder="Password"
-                                    style={inputStyle}
-                                    onKeyDown={(e) => e.key === "Enter" && onLogin(name || email)}
-                                />
-                            </div>
+                            {authMode === 'forgot_reset' && (
+                                <div>
+                                    <div style={{ position: 'relative', marginBottom: 14 }}>
+                                        <span style={{ ...labelIconStyle }}><Icon name="lock" size={20} /></span>
+                                        <input type="password" placeholder={t.placeholder_password} value={password} onChange={e => setPassword(e.target.value)} style={inputStyle} />
+                                    </div>
+                                    <div style={{ position: 'relative', marginBottom: 20 }}>
+                                        <span style={{ ...labelIconStyle }}><Icon name="check-circle" size={20} /></span>
+                                        <input type="password" placeholder={t.placeholder_confirm} value={confirmPassword} onChange={e => setConfirmPassword(e.target.value)} style={inputStyle} />
+                                    </div>
+                                    <button onClick={handleResetPassword} style={{ width: '100%', padding: '16px', background: '#6366f1', color: 'white', border: 'none', borderRadius: 14, cursor: 'pointer', fontWeight: 600 }}>
+                                        {t.btn_reset}
+                                    </button>
+                                </div>
+                            )}
 
-                            {isLogin && (
-                                <p style={{ textAlign: 'right', marginBottom: 16 }}>
-                                    <span style={{ color: '#6366f1', fontSize: 12, cursor: 'pointer' }}>Lupa Password?</span>
+                            {/* Footer Links */}
+                            {(authMode === 'login' || authMode === 'register') && (
+                                <p style={{ textAlign: 'center', marginTop: 20, fontSize: 13, color: 'rgba(255,255,255,0.5)' }}>
+                                    {authMode === 'login' ? t.text_no_account : t.text_have_account}
+                                    <span onClick={() => setAuthMode(authMode === 'login' ? 'register' : 'login')} style={{ color: '#6366f1', cursor: 'pointer', fontWeight: 600 }}>
+                                        {authMode === 'login' ? t.link_register : t.link_login}
+                                    </span>
                                 </p>
                             )}
-
-                            {!isLogin && (
-                                <label style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 12, marginBottom: 16, cursor: 'pointer' }}>
-                                    <input type="checkbox" style={{ width: 18, height: 18, accentColor: '#6366f1', borderRadius: 4 }} />
-                                    <span style={{ fontSize: 12, color: 'rgba(255,255,255,0.5)', lineHeight: 1.4 }}>
-                                        Saya setuju dengan <span style={{ color: '#6366f1' }}>Ketentuan Layanan</span>
-                                    </span>
-                                </label>
-                            )}
-
-                            <button
-                                onClick={() => onLogin(name || email.split('@')[0])}
-                                style={{
-                                    width: '100%',
-                                    padding: '16px',
-                                    background: 'linear-gradient(135deg, #6366f1, #8b5cf6)',
-                                    border: 'none',
-                                    borderRadius: 14,
-                                    color: 'white',
-                                    fontSize: 15,
-                                    fontWeight: 600,
-                                    cursor: 'pointer',
-                                    boxShadow: '0 8px 24px rgba(99, 102, 241, 0.35)',
-                                    transition: 'all 0.3s ease',
-                                    display: 'flex',
-                                    alignItems: 'center',
-                                    justifyContent: 'center',
-                                    gap: 8
-                                }}
-                            >
-                                {isLogin ? 'Masuk' : 'Daftar Sekarang'} <Icon name="arrow-right" size={18} />
-                            </button>
-
-                            <p style={{ textAlign: 'center', marginTop: 20, fontSize: 13, color: 'rgba(255,255,255,0.5)' }}>
-                                {isLogin ? 'Belum punya akun? ' : 'Sudah punya akun? '}
-                                <span
-                                    onClick={() => setIsLogin(!isLogin)}
-                                    style={{ color: '#6366f1', cursor: 'pointer', fontWeight: 600 }}
-                                >
-                                    {isLogin ? 'Daftar' : 'Masuk'}
-                                </span>
-                            </p>
                         </div>
                     </div>
                 </Background3D>
@@ -1696,11 +1890,18 @@
             return (
                 <Background3D color1="var(--primary)" color2="var(--secondary)">
                     <div className="animate">
-                        <header className="page-header" style={{ background: 'linear-gradient(135deg, var(--primary), var(--secondary))' }}>
-                            <h1 style={{ fontSize: '24px', fontWeight: '800', color: 'white' }}>Bidang IT</h1>
-                            <div className="search-bar" style={{ background: 'rgba(255,255,255,0.2)', border: 'none', marginTop: 16 }}>
-                                <Icon name="search" color="white" />
-                                <input type="text" placeholder="Cari bidang keahlianmu..." style={{ color: 'white' }} />
+                        <header className="page-header" style={{
+                            background: 'linear-gradient(135deg, var(--primary), var(--secondary))',
+                            padding: 'calc(10px + env(safe-area-inset-top)) 16px 12px',
+                            display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12
+                        }}>
+                            <h1 style={{ fontSize: '18px', fontWeight: '800', color: 'white' }}>Bidang IT</h1>
+                            <div className="search-bar" style={{
+                                background: 'rgba(255,255,255,0.15)', border: 'none',
+                                marginTop: 0, padding: '6px 12px', borderRadius: 10, flex: 1, maxWidth: 300
+                            }}>
+                                <Icon name="search" color="white" size={14} />
+                                <input type="text" placeholder="Cari bidang..." style={{ color: 'white', fontSize: '12px' }} />
                             </div>
                         </header>
                         <div className="container" style={{ padding: '24px 0' }}>
@@ -2322,78 +2523,60 @@
                                 </div>
                             </div>
                         )}
-                        {/* Header with Back Button */}
+                        {/* Ultra-Slim & Multi-Row Consolidated Header */}
                         <header className="page-header" style={{
                             background: `linear-gradient(135deg, ${bidang.color || 'var(--primary)'}, ${bidang.color || 'var(--secondary)'}dd)`,
                             color: 'white',
-                            boxShadow: `0 10px 30px ${(bidang.color || 'var(--primary)')}44`
+                            boxShadow: `0 4px 15px ${(bidang.color || 'var(--primary)')}15`,
+                            padding: 'calc(6px + env(safe-area-inset-top)) 12px 8px',
+                            borderRadius: '0 0 16px 16px',
+                            position: 'relative',
+                            zIndex: 20
                         }}>
-                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
-                                <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
-                                    <div onClick={onBack} style={{ cursor: 'pointer', padding: 8, background: 'rgba(255,255,255,0.2)', borderRadius: '50%' }}>
-                                        <Icon name="chevron-left" size={24} color="white" />
+                            {/* Row 1: Back + Title + Stats + Undang (All in one compact row) */}
+                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                                    <div onClick={onBack} style={{
+                                        cursor: 'pointer', padding: 4,
+                                        background: 'rgba(255,255,255,0.1)',
+                                        borderRadius: '50%', display: 'flex'
+                                    }}>
+                                        <Icon name="chevron-left" size={14} color="white" />
                                     </div>
-                                    <h2 style={{ fontSize: 20, fontWeight: 800 }}>{bidang.name}</h2>
+                                    <div style={{ display: 'flex', alignItems: 'baseline', gap: 6 }}>
+                                        <h2 style={{ fontSize: 13, fontWeight: 800, letterSpacing: '-0.2px' }}>{bidang.name}</h2>
+                                        <span style={{ fontSize: 10, opacity: 0.7, fontWeight: 400 }}>{discussions.length} Diskusi • {categoryData.materials?.length || 0} Materi</span>
+                                    </div>
                                 </div>
                                 <button onClick={() => setShowMemberSelector(true)} style={{
-                                    padding: '8px 14px',
-                                    background: 'rgba(0,0,0,0.2)',
-                                    border: '1px solid rgba(255,255,255,0.1)',
-                                    borderRadius: 12,
-                                    color: 'white',
-                                    fontSize: 12,
-                                    fontWeight: 700,
-                                    display: 'flex',
-                                    alignItems: 'center',
-                                    gap: 6,
-                                    cursor: 'pointer'
+                                    padding: '3px 8px', background: 'rgba(255,255,255,0.15)',
+                                    border: 'none', borderRadius: 20, color: 'white', fontSize: 9, fontWeight: 700,
+                                    display: 'flex', alignItems: 'center', gap: 4, cursor: 'pointer'
                                 }}>
-                                    <Icon name="user-plus" size={16} /> Undangan
+                                    <Icon name="user-plus" size={10} /> Undang
                                 </button>
                             </div>
 
-                            <div style={{ display: 'flex', alignItems: 'center', gap: 16, marginBottom: 16 }}>
-                                <div style={{
-                                    width: 50, height: 50,
-                                    borderRadius: 14,
-                                    background: 'rgba(255,255,255,0.2)',
-                                    display: 'flex', alignItems: 'center', justifyContent: 'center',
-                                    fontSize: 28
-                                }}>
-                                    {bidang.icon}
-                                </div>
-                                <div>
-                                    <div style={{ fontSize: 14, fontWeight: 800 }}>{bidang.name} Expert Hub</div>
-                                    <div style={{ fontSize: 12, opacity: 0.9 }}>{discussions.length} Diskusi • {categoryData.materials?.length || 0} Materi</div>
-                                </div>
-                            </div>
-
-                            {/* Custom Menu Bar (Tabs) */}
-                            <div style={{ padding: '0 24px', position: 'relative', marginTop: -20, display: 'flex', gap: 8, overflowX: 'auto', zIndex: 10 }}>
+                            {/* Row 2: Pills Menu (Even smaller) */}
+                            <div style={{
+                                display: 'flex', gap: 3, background: 'rgba(0,0,0,0.1)',
+                                padding: 2, borderRadius: 10, backdropFilter: 'blur(10px)'
+                            }}>
                                 {['diskusi', 'materi', 'ahli'].map(t => (
                                     <button
                                         key={t}
                                         onClick={() => setActiveTab(t)}
                                         style={{
-                                            flexShrink: 0,
-                                            padding: '12px 20px',
-                                            borderRadius: '14px',
-                                            background: activeTab === t ? (bidang.color || 'var(--primary)') : 'var(--bg-card)',
-                                            color: activeTab === t ? 'white' : 'var(--text-gray)',
-                                            border: `1px solid ${activeTab === t ? 'transparent' : 'var(--border)'}`,
-                                            fontWeight: 800,
-                                            fontSize: '13px',
-                                            cursor: 'pointer',
-                                            transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
-                                            textTransform: 'capitalize',
-                                            boxShadow: activeTab === t ? `0 8px 16px ${bidang.color}44` : 'none',
-                                            display: 'flex',
-                                            alignItems: 'center',
-                                            gap: 6
+                                            flex: 1, padding: '5px 2px', borderRadius: 8,
+                                            background: activeTab === t ? 'white' : 'transparent',
+                                            color: activeTab === t ? (bidang.color || 'var(--primary)') : 'rgba(255,255,255,0.7)',
+                                            border: 'none', fontWeight: 800, fontSize: 10, cursor: 'pointer',
+                                            transition: 'all 0.2s', textTransform: 'uppercase', letterSpacing: '0.3px',
+                                            display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 4
                                         }}
                                     >
-                                        <Icon name={t === 'diskusi' ? 'message-circle' : t === 'materi' ? 'book-open' : 'award'} size={16} />
-                                        {t === 'diskusi' ? `Diskusi (${discussions.length})` : t === 'materi' ? `Materi (${(categoryData.materials || []).length})` : t}
+                                        <Icon name={t === 'diskusi' ? 'message-circle' : t === 'materi' ? 'book-open' : 'award'} size={10} />
+                                        {t === 'diskusi' ? `Diskusi` : t === 'materi' ? `Materi` : 'Ahli'}
                                     </button>
                                 ))}
                             </div>
@@ -2636,23 +2819,11 @@
                             transition: 'background 0.5s ease',
                             boxShadow: `0 15px 30px ${searchSource === 'internal' ? 'rgba(0,0,0,0.2)' : activeSource.color + '22'}`,
                         }}>
-                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
                                 <div>
-                                    <h1 style={{ fontSize: 'clamp(20px, 5vw, 24px)', fontWeight: '800', color: 'white' }}>Beranda</h1>
-                                    <p style={{ color: 'rgba(255,255,255,0.8)', fontSize: '13px', marginTop: 4 }}>
-                                        Selamat datang, {userName || 'Karyawan'}!
-                                        <span style={{
-                                            display: 'inline-block',
-                                            marginLeft: '8px',
-                                            padding: '2px 8px',
-                                            borderRadius: '6px',
-                                            background: 'rgba(99, 102, 241, 0.2)',
-                                            color: '#818cf8',
-                                            fontSize: '10px',
-                                            fontWeight: '700',
-                                            border: '1px solid rgba(99, 102, 241, 0.3)',
-                                            verticalAlign: 'middle'
-                                        }}>{userRole}</span>
+                                    <h1 style={{ fontSize: '18px', fontWeight: '800', color: 'white' }}>Beranda</h1>
+                                    <p style={{ color: 'rgba(255,255,255,0.8)', fontSize: '11px', marginTop: 2 }}>
+                                        Halo, {userName || 'User'}! {userRole && <span style={{ opacity: 0.6, fontSize: '9px' }}>• {userRole}</span>}
                                     </p>
                                 </div>
                                 <div style={{ position: 'relative' }}>
@@ -2771,11 +2942,12 @@
 
                             <div style={{ position: 'relative' }}>
                                 <div className="search-bar" style={{
-                                    background: 'rgba(255,255,255,0.15)',
-                                    border: `1.5px solid ${searchSource === 'internal' ? 'rgba(255,255,255,0.2)' : activeSource.color}`,
-                                    marginTop: 16,
-                                    transition: 'all 0.4s cubic-bezier(0.4, 0, 0.2, 1)',
-                                    boxShadow: searchSource === 'internal' ? 'none' : `0 0 20px ${activeSource.color}44`,
+                                    background: 'rgba(255,255,255,0.12)',
+                                    border: `1px solid ${searchSource === 'internal' ? 'rgba(255,255,255,0.15)' : activeSource.color + '66'}`,
+                                    marginTop: 0,
+                                    padding: '6px 10px',
+                                    borderRadius: 12,
+                                    transition: 'all 0.3s',
                                     backdropFilter: 'blur(10px)'
                                 }}>
                                     <div
@@ -2824,20 +2996,19 @@
                                     )}
                                 </div>
 
-                                {/* Source Selector Menu (Maximized UI) */}
                                 {showSourceSelector && (
                                     <div className="animate" style={{
                                         position: 'absolute',
-                                        top: 'calc(100% + 12px)',
+                                        top: 'calc(100% + 8px)',
                                         left: 0,
                                         zIndex: 9999,
-                                        padding: 10,
                                         width: 240,
-                                        background: 'rgba(15, 23, 42, 0.9)',
-                                        borderRadius: 20,
-                                        boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.7)',
-                                        border: `1px solid ${activeSource.color}55`,
-                                        backdropFilter: 'blur(24px)',
+                                        padding: 8,
+                                        background: 'rgba(15, 23, 42, 0.95)',
+                                        borderRadius: 16,
+                                        boxShadow: '0 20px 40px rgba(0,0,0,0.6)',
+                                        border: `1px solid ${activeSource.color}44`,
+                                        backdropFilter: 'blur(20px)',
                                         overflow: 'hidden'
                                     }}>
                                         <div style={{ fontSize: 11, color: 'var(--text-gray)', padding: '6px 14px 10px', textTransform: 'uppercase', letterSpacing: 1.5, fontWeight: 700 }}>Sumber Bantuan</div>
@@ -3310,7 +3481,8 @@
                 const allKeys = [];
                 for (let i = 0; i < localStorage.length; i++) {
                     const k = localStorage.key(i);
-                    if (k.startsWith(redis.prefix)) {
+                    // Null check to prevent error if key is null
+                    if (k && k.startsWith(redis.prefix)) {
                         allKeys.push(k.replace(redis.prefix, ''));
                     }
                 }
@@ -3495,6 +3667,9 @@
 
         // --- MAIN APP ---
         function App() {
+            // History Management Ref
+            const isPopState = React.useRef(false);
+
             // Always force splash screen on first load
             const [screen, setScreen] = useState('splash');
             const [onboardingStep, setOnboardingStep] = useState(0);
@@ -3509,6 +3684,52 @@
             // Load Knowledge Base & Category Data from Redis
             const [knowledge, setKnowledge] = useState(() => redis.get('knowledge', KNOWLEDGE_BASE));
             const [categoryData, setCategoryData] = useState(() => redis.get('categoryData', {}));
+
+            // --- BROWSER HISTORY INTEGRATION ---
+            useEffect(() => {
+                // Initialize current state in history
+                window.history.replaceState({ screen, tab, selectedBidang: null }, '', '');
+
+                const handlePopState = (event) => {
+                    if (event.state) {
+                        isPopState.current = true;
+
+                        // Restore State
+                        if (event.state.screen) setScreen(event.state.screen);
+                        if (event.state.tab) setTab(event.state.tab);
+                        setSelectedBidang(event.state.selectedBidang || null);
+                    }
+                };
+
+                window.addEventListener('popstate', handlePopState);
+                return () => window.removeEventListener('popstate', handlePopState);
+            }, []);
+
+            // Sync App State to Browser History
+            const lastHistoryState = React.useRef(null);
+            useEffect(() => {
+                if (isPopState.current) {
+                    isPopState.current = false;
+                    return;
+                }
+
+                // Push new state logic
+                // Only push if not splash (scrambles history on load)
+                if (screen === 'splash') return;
+
+                const historyState = {
+                    screen,
+                    tab,
+                    selectedBidang: selectedBidang ? { name: selectedBidang.name, id: selectedBidang.id } : null
+                };
+
+                // Prevent duplicate history entries
+                const stateString = JSON.stringify(historyState);
+                if (lastHistoryState.current === stateString) return;
+                lastHistoryState.current = stateString;
+
+                window.history.pushState(historyState, '', '');
+            }, [screen, tab, selectedBidang]);
 
             // Redis Persistence Effect (Auto-Save)
             useEffect(() => {
@@ -3562,17 +3783,81 @@
                 if (onboardingStep < 2) {
                     setOnboardingStep(onboardingStep + 1);
                 } else {
+                    redis.set('bb_onboarded', true);
                     setScreen('auth');
                 }
             };
 
-            const handleLogin = (name) => {
-                if (!name) { alert('Mohon isi nama Anda'); return; }
-                setUserName(name);
-                setScreen('main');
-                // Sync to Redis
-                redis.set('userName', name);
-                redis.set('screen', 'main');
+            const handleLogin = (authData) => {
+                // Support legacy simple string call if any
+                if (typeof authData === 'string') {
+                    if (!authData) { alert('Mohon isi nama Anda'); return; }
+                    setUserName(authData);
+                    setScreen('main');
+                    redis.set('userName', authData);
+                    redis.set('screen', 'main');
+                    return;
+                }
+
+                const { name, email, password, isRegister, isSocial } = authData;
+
+                // Auto-register for social login
+                if (isSocial) {
+                    const users = redis.get('users_db', []);
+                    let user = users.find(u => u.email === email);
+                    if (!user) {
+                        user = { id: Date.now(), name, email, password, role: 'User', joinedAt: new Date().toISOString() };
+                        users.push(user);
+                        redis.set('users_db', users);
+                    }
+                    setUserName(user.name);
+                    setScreen('main');
+                    redis.set('userName', user.name);
+                    redis.set('screen', 'main');
+                    return;
+                }
+
+                // Fetch DB
+                const users = redis.get('users_db', []);
+
+                if (isRegister) {
+                    if (users.find(u => u.email === email)) {
+                        alert('Email sudah terdaftar! Silakan login.');
+                        return;
+                    }
+                    const newUser = { id: Date.now(), name: name || 'User', email, password, role: 'User', joinedAt: new Date().toISOString() };
+                    users.push(newUser);
+                    redis.set('users_db', users);
+
+                    alert('Registrasi Berhasil! Selamat datang, ' + newUser.name);
+                    setUserName(newUser.name);
+                    setUserRole('User'); // Default role
+                    setScreen('main');
+
+                    // Persist Session
+                    redis.set('userName', newUser.name);
+                    redis.set('userRole', 'User');
+                    redis.set('screen', 'main');
+                } else {
+                    const user = users.find(u => u.email === email && u.password === password);
+                    if (user) {
+                        setUserName(user.name);
+                        setUserRole(user.role || 'User');
+                        setScreen('main');
+
+                        redis.set('userName', user.name);
+                        redis.set('userRole', user.role || 'User');
+                        redis.set('screen', 'main');
+                    } else {
+                        // Backdoor Local Demo
+                        if (email === 'admin' && password === 'admin') {
+                            setUserName('Super Admin');
+                            setScreen('main');
+                            return;
+                        }
+                        alert('Email atau Password salah! Coba lagi.');
+                    }
+                }
             };
 
             const handleLogout = () => {
@@ -3580,15 +3865,33 @@
                     setUserName('');
                     setScreen('auth');
                     setTab('home');
-                    // Secure Redis Flush
-                    redis.flushdb();
+                    // Secure Cleanup - Only clear session
+                    redis.del('userName');
+                    redis.del('screen');
+                    redis.del('userRole');
+                    redis.del('tab');
+                    // DO NOT FLUSH DB to preserve registration data
+                    // redis.flushdb(); 
                     window.location.reload();
                 }
             };
 
-            // Splash Screen
+            // Splash Screen Completion Logic
+            const handleSplashFinish = () => {
+                const savedScreen = redis.get('screen', 'onboarding');
+                const onboarded = redis.get('bb_onboarded', false);
+
+                if (userName && savedScreen === 'main') {
+                    setScreen('main');
+                } else if (onboarded) {
+                    setScreen('auth');
+                } else {
+                    setScreen('onboarding');
+                }
+            };
+
             if (screen === 'splash') {
-                return <Splash onFinish={() => setScreen('onboarding')} />;
+                return <Splash onFinish={handleSplashFinish} />;
             }
 
             // Onboarding Screen

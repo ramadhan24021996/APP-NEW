@@ -597,7 +597,7 @@
         }
 
         .nav-item.active {
-            font-weight: 700;
+            font-weight: 00;
             scale: 1.05;
         }
 
@@ -1092,13 +1092,7 @@
             }
         ];
 
-        const REGISTERED_MEMBERS = [
-            { id: 1, name: 'Budi Santoso', role: 'IT Support Senior', image: 'https://i.pravatar.cc/150?u=1' },
-            { id: 2, name: 'Siti Aminah', role: 'Database Admin', image: 'https://i.pravatar.cc/150?u=2' },
-            { id: 3, name: 'Ahmad Rizky', role: 'Network Engineer', image: 'https://i.pravatar.cc/150?u=3' },
-            { id: 4, name: 'Dewi Lestari', role: 'Software Developer', image: 'https://i.pravatar.cc/150?u=4' },
-            { id: 5, name: 'Rudi Hermawan', role: 'Security Analyst', image: 'https://i.pravatar.cc/150?u=5' }
-        ];
+
 
         // --- PAGES ---
 
@@ -1409,21 +1403,92 @@
             const [email, setEmail] = useState('');
             const [password, setPassword] = useState('');
             const [confirmPassword, setConfirmPassword] = useState('');
-            const [isLogin, setIsLogin] = useState(true); // Default: Login Mode
+            const [otp, setOtp] = useState('');
+            const [generatedOtp, setGeneratedOtp] = useState(null);
+            const [showPassword, setShowPassword] = useState(false); // State for toggle visibility
+
+            // Auth Mode: 'login', 'register', 'forgot_email', 'forgot_otp', 'forgot_reset'
+            const [authMode, setAuthMode] = useState('login');
             const [socialType, setSocialType] = useState(null);
+            const [rememberMe, setRememberMe] = useState(false);
+
+            useEffect(() => {
+                const savedEmail = localStorage.getItem('remember_email');
+                if (savedEmail) {
+                    setEmail(savedEmail);
+                    setRememberMe(true);
+                }
+            }, []);
 
             const handleSubmit = () => {
                 if (!email || !password) { alert('Email dan Password wajib diisi'); return; }
 
-                if (!isLogin) {
+                if (authMode === 'register') {
                     // Register Validation
                     if (!name) { alert('Nama Lengkap wajib diisi'); return; }
                     if (password !== confirmPassword) { alert('Konfirmasi password tidak cocok'); return; }
                     if (password.length < 6) { alert('Password minimal 6 karakter'); return; }
                 }
 
+                // Handle Remember Me logic
+                if (authMode === 'login') {
+                    if (rememberMe) {
+                        localStorage.setItem('remember_email', email);
+                    } else {
+                        localStorage.removeItem('remember_email');
+                    }
+                }
+
                 // Call parent handler with object
-                onLogin({ name, email, password, isRegister: !isLogin });
+                onLogin({ name, email, password, isRegister: authMode === 'register' });
+            };
+
+            const handleSendOtp = () => {
+                if (!email) { alert("Email wajib diisi"); return; }
+
+                // Check DB using redis helper
+                const users = redis.get('users_db', []);
+                const user = users.find(u => u.email === email);
+
+                if (!user) {
+                    alert('Email tidak terdaftar!');
+                    return;
+                }
+
+                // Generate OTP
+                const code = Math.floor(100000 + Math.random() * 900000).toString();
+                setGeneratedOtp(code);
+                alert(`Kode OTP: ${code}`); // Simulate Email Sending
+                setAuthMode('forgot_otp');
+            };
+
+            const handleVerifyOtp = () => {
+                if (otp === generatedOtp) {
+                    setAuthMode('forgot_reset');
+                } else {
+                    alert('Kode OTP salah!');
+                }
+            };
+
+            const handleResetPassword = () => {
+                if (password.length < 6) { alert('Password minimal 6 karakter'); return; }
+                if (password !== confirmPassword) { alert('Konfirmasi password tidak cocok'); return; }
+
+                // Update Password in DB using redis
+                const users = redis.get('users_db', []);
+                const updatedUsers = users.map(u => {
+                    if (u.email === email) {
+                        return { ...u, password: password };
+                    }
+                    return u;
+                });
+                redis.set('users_db', updatedUsers);
+
+                alert('Kata sandi berhasil diubah! Silakan login.');
+                setAuthMode('login');
+                setPassword('');
+                setConfirmPassword('');
+                setOtp('');
             };
 
             // Force full width centering by removing sidebar padding
@@ -1464,14 +1529,24 @@
                 opacity: 0.6
             };
 
-            // Social Login Mockup (Based on Image)
+            // Social Login Simulation (Auto-Login Mock)
             if (socialType) {
+                // Simulate auto-login process
+                setTimeout(() => {
+                    const mockEmail = socialType === 'google' ? 'googleuser@gmail.com' : 'msuser@outlook.com';
+                    const mockName = socialType === 'google' ? 'Google User' : 'Microsoft User';
+
+                    onLogin({
+                        name: mockName,
+                        email: mockEmail,
+                        password: 'social-login',
+                        isRegister: true // Forces "Upsert" logic in handleLogin (Login if exists, Register if new)
+                    });
+                }, 1500);
+
                 return (
                     <div className="auth-screen animate" style={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        padding: '20px'
+                        display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px'
                     }}>
                         <div style={{
                             background: 'rgba(255,255,255,0.03)',
@@ -1479,104 +1554,19 @@
                             padding: '40px',
                             borderRadius: '32px',
                             border: '1px solid rgba(255,255,255,0.1)',
-                            boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.5)',
-                            width: '100%',
-                            maxWidth: '420px',
-                            textAlign: 'center'
+                            width: '100%', maxWidth: '360px', textAlign: 'center'
                         }}>
-                            <h2 style={{
-                                color: 'white',
-                                fontSize: '28px',
-                                textAlign: 'center',
-                                marginBottom: '24px',
-                                fontWeight: '800'
-                            }}>
-                                Login {socialType === 'google' ? 'Google' : 'Microsoft'}
-                            </h2>
-
-                            <div style={{ marginBottom: '20px', textAlign: 'left' }}>
-                                <label style={{ display: 'block', color: 'rgba(255,255,255,0.6)', marginBottom: '8px', fontSize: '13px', fontWeight: '600' }}>Email</label>
-                                <input
-                                    type="email"
-                                    value={email}
-                                    onChange={e => setEmail(e.target.value)}
-                                    style={{
-                                        width: '100%',
-                                        padding: '14px',
-                                        background: 'rgba(255,255,255,0.05)',
-                                        border: '1px solid rgba(255,255,255,0.1)',
-                                        borderRadius: '12px',
-                                        outline: 'none',
-                                        color: 'white'
-                                    }}
-                                />
+                            <div className="animate-pulse" style={{ width: 60, height: 60, borderRadius: '50%', background: socialType === 'google' ? '#dc2626' : '#2563eb', margin: '0 auto 20px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                                {socialType === 'google' ? (
+                                    <svg width="30" height="30" viewBox="0 0 24 24" fill="white"><path d="M12.48 10.92v3.28h7.84c-.24 1.84-.92 3.2-1.84 4.32-1.04 1.28-2.6 2.4-5.44 2.4-4.8 0-8.68-3.88-8.68-8.68s3.88-8.68 8.68-8.68c2.6 0 4.56.92 6 2.32l2.32-2.32C21.04 1.28 17.6 0 12.4 0 5.6 0 0 5.48 0 12.4s5.6 12.4 12.4 12.4c3.6 0 6.36-1.2 8.52-3.44 2.24-2.24 2.8-5.36 2.8-7.88 0-.52-.04-1.04-.12-1.56H12.48z" /></svg>
+                                ) : (
+                                    <svg width="30" height="30" viewBox="0 0 21 21"><rect x="1" y="1" width="9" height="9" fill="white" /><rect x="11" y="1" width="9" height="9" fill="white" /><rect x="1" y="11" width="9" height="9" fill="white" /><rect x="11" y="11" width="9" height="9" fill="white" /></svg>
+                                )}
                             </div>
+                            <h3 style={{ fontSize: 18, color: 'white', marginBottom: 10 }}>Menghubungkan ke {socialType === 'google' ? 'Google' : 'Microsoft'}...</h3>
+                            <p style={{ fontSize: 13, color: 'rgba(255,255,255,0.6)' }}>Mohon tunggu, sedang memverifikasi kredensial Anda.</p>
 
-                            <div style={{ marginBottom: '24px', textAlign: 'left' }}>
-                                <label style={{ display: 'block', color: 'rgba(255,255,255,0.6)', marginBottom: '8px', fontSize: '13px', fontWeight: '600' }}>Password</label>
-                                <input
-                                    type="password"
-                                    style={{
-                                        width: '100%',
-                                        padding: '14px',
-                                        background: 'rgba(255,255,255,0.05)',
-                                        border: '1px solid rgba(255,255,255,0.1)',
-                                        borderRadius: '12px',
-                                        outline: 'none',
-                                        color: 'white'
-                                    }}
-                                />
-                            </div>
-
-                            <div style={{ textAlign: 'center' }}>
-                                <button
-                                    onClick={() => onLogin(email.split('@')[0] || (socialType === 'google' ? 'Google User' : 'Microsoft User'))}
-                                    style={{
-                                        background: '#3b82f6',
-                                        color: 'white',
-                                        padding: '10px 24px',
-                                        borderRadius: '6px',
-                                        border: 'none',
-                                        fontWeight: '600',
-                                        cursor: 'pointer',
-                                        marginBottom: '12px'
-                                    }}>
-                                    Sign In
-                                </button>
-                                <div style={{ color: '#6b7280', fontSize: '14px', marginBottom: '12px' }}>Atau</div>
-                                <button
-                                    onClick={() => setSocialType(null)}
-                                    style={{
-                                        background: socialType === 'google' ? '#dc2626' : '#2563eb',
-                                        color: 'white',
-                                        padding: '10px 20px',
-                                        borderRadius: '6px',
-                                        border: 'none',
-                                        fontWeight: '500',
-                                        cursor: 'pointer',
-                                        display: 'flex',
-                                        alignItems: 'center',
-                                        justifyContent: 'center',
-                                        gap: '10px',
-                                        width: '100%'
-                                    }}>
-                                    {socialType === 'google' ? (
-                                        <svg width="20" height="20" viewBox="0 0 24 24" fill="white">
-                                            <path d="M12.48 10.92v3.28h7.84c-.24 1.84-.92 3.2-1.84 4.32-1.04 1.28-2.6 2.4-5.44 2.4-4.8 0-8.68-3.88-8.68-8.68s3.88-8.68 8.68-8.68c2.6 0 4.56.92 6 2.32l2.32-2.32C21.04 1.28 17.6 0 12.4 0 5.6 0 0 5.48 0 12.4s5.6 12.4 12.4 12.4c3.6 0 6.36-1.2 8.52-3.44 2.24-2.24 2.8-5.36 2.8-7.88 0-.52-.04-1.04-.12-1.56H12.48z" />
-                                        </svg>
-                                    ) : (
-                                        <svg width="20" height="20" viewBox="0 0 23 23">
-                                            <path fill="#f3f3f3" d="M0 0h11v11H0z" /><path fill="#f3f3f3" d="M12 0h11v11H12z" /><path fill="#f3f3f3" d="M0 12h11v11H0z" /><path fill="#f3f3f3" d="M12 12h11v11H12z" /><path fill="#f25022" d="M1 1h9v9H1z" /><path fill="#7fba00" d="M13 1h9v9h-9z" /><path fill="#00a4ef" d="M1 13h9v9H1z" /><path fill="#ffb900" d="M13 13h9v9h-9z" />
-                                        </svg>
-                                    )}
-                                    Login dengan {socialType === 'google' ? 'Google' : 'Microsoft'}
-                                </button>
-                                <button
-                                    onClick={() => setSocialType(null)}
-                                    style={{ background: 'none', border: 'none', color: '#3b82f6', marginTop: '16px', cursor: 'pointer', fontSize: '14px' }}>
-                                    Kembali
-                                </button>
-                            </div>
+                            <button onClick={() => setSocialType(null)} style={{ marginTop: 24, background: 'none', border: 'none', color: 'rgba(255,255,255,0.4)', fontSize: 12, cursor: 'pointer' }}>Batalkan</button>
                         </div>
                     </div>
                 );
@@ -1602,7 +1592,6 @@
                             flexDirection: 'column',
                             justifyContent: 'center'
                         }}>
-                            {/* Header */}
                             <div style={{ textAlign: 'center', marginBottom: 20, flexShrink: 0 }}>
                                 <div style={{
                                     width: 60,
@@ -1629,183 +1618,260 @@
                                     marginBottom: 4,
                                     letterSpacing: '2px',
                                     textTransform: 'uppercase'
-                                }}>{isLogin ? 'Selamat Datang!' : 'SIGN UP'}</h1>
+                                }}>
+                                    {authMode === 'login' ? 'Selamat Datang!' :
+                                        authMode === 'register' ? 'Buat Akun Baru' :
+                                            authMode === 'forgot_email' ? 'Lupa Kata Sandi' :
+                                                authMode === 'forgot_otp' ? 'Verifikasi OTP' : 'Atur Ulang Kata Sandi'}
+                                </h1>
                                 <p style={{ color: 'rgba(255,255,255,0.5)', fontSize: 13 }}>
-                                    {isLogin ? 'Masuk ke akun Anda' : 'Buat akun gratis sekarang'}
+                                    {authMode === 'login' ? 'Masuk ke akun Anda' :
+                                        authMode === 'register' ? 'Buat akun gratis sekarang' :
+                                            authMode === 'forgot_email' ? 'Masukkan email untuk menerima kode OTP' :
+                                                authMode === 'forgot_otp' ? 'Kode OTP telah dikirim ke email Anda' : 'Masukkan kata sandi baru Anda'}
                                 </p>
                             </div>
 
-                            {/* Social Login */}
-                            <div style={{ display: 'flex', gap: 10, marginBottom: 20 }}>
-                                <button
-                                    onClick={() => setSocialType('google')}
-                                    style={{
-                                        flex: 1,
-                                        padding: '12px',
-                                        background: '#dc2626',
-                                        border: 'none',
-                                        borderRadius: 12,
-                                        color: 'white',
-                                        cursor: 'pointer',
-                                        display: 'flex',
-                                        alignItems: 'center',
-                                        justifyContent: 'center',
-                                        gap: 8,
-                                        fontSize: 13,
-                                        fontWeight: 500,
-                                        fontFamily: 'inherit',
-                                        transition: 'all 0.2s'
-                                    }}>
-                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="white">
-                                        <path d="M12.48 10.92v3.28h7.84c-.24 1.84-.92 3.2-1.84 4.32-1.04 1.28-2.6 2.4-5.44 2.4-4.8 0-8.68-3.88-8.68-8.68s3.88-8.68 8.68-8.68c2.6 0 4.56.92 6 2.32l2.32-2.32C21.04 1.28 17.6 0 12.4 0 5.6 0 0 5.48 0 12.4s5.6 12.4 12.4 12.4c3.6 0 6.36-1.2 8.52-3.44 2.24-2.24 2.8-5.36 2.8-7.88 0-.52-.04-1.04-.12-1.56H12.48z" />
-                                    </svg>
-                                    <span>Google</span>
-                                </button>
-                                <button
-                                    onClick={() => setSocialType('microsoft')}
-                                    style={{
-                                        flex: 1,
-                                        padding: '12px',
-                                        background: '#2563eb',
-                                        border: 'none',
-                                        borderRadius: 12,
-                                        color: 'white',
-                                        cursor: 'pointer',
-                                        display: 'flex',
-                                        alignItems: 'center',
-                                        justifyContent: 'center',
-                                        gap: 8,
-                                        fontSize: 13,
-                                        fontWeight: 500,
-                                        fontFamily: 'inherit',
-                                        transition: 'all 0.2s'
-                                    }}>
-                                    <svg width="14" height="14" viewBox="0 0 21 21" fill="white">
-                                        <rect x="1" y="1" width="9" height="9" fill="white" />
-                                        <rect x="11" y="1" width="9" height="9" fill="white" />
-                                        <rect x="1" y="11" width="9" height="9" fill="white" />
-                                        <rect x="11" y="11" width="9" height="9" fill="white" />
-                                    </svg>
-                                    <span>Microsoft</span>
-                                </button>
-                            </div>
+                            {/* Social Login & Form Fields Group */}
+                            {(authMode === 'login' || authMode === 'register') && (
+                                <>
+                                    {/* Social Login */}
+                                    <div style={{ display: 'flex', gap: 10, marginBottom: 20 }}>
+                                        <button
+                                            onClick={() => setSocialType('google')}
+                                            style={{
+                                                flex: 1,
+                                                padding: '12px',
+                                                background: '#dc2626',
+                                                border: 'none',
+                                                borderRadius: 12,
+                                                color: 'white',
+                                                cursor: 'pointer',
+                                                display: 'flex',
+                                                alignItems: 'center',
+                                                justifyContent: 'center',
+                                                gap: 8,
+                                                fontSize: 13,
+                                                fontWeight: 500,
+                                                fontFamily: 'inherit',
+                                                transition: 'all 0.2s'
+                                            }}>
+                                            <svg width="14" height="14" viewBox="0 0 24 24" fill="white">
+                                                <path d="M12.48 10.92v3.28h7.84c-.24 1.84-.92 3.2-1.84 4.32-1.04 1.28-2.6 2.4-5.44 2.4-4.8 0-8.68-3.88-8.68-8.68s3.88-8.68 8.68-8.68c2.6 0 4.56.92 6 2.32l2.32-2.32C21.04 1.28 17.6 0 12.4 0 5.6 0 0 5.48 0 12.4s5.6 12.4 12.4 12.4c3.6 0 6.36-1.2 8.52-3.44 2.24-2.24 2.8-5.36 2.8-7.88 0-.52-.04-1.04-.12-1.56H12.48z" />
+                                            </svg>
+                                            <span>Google</span>
+                                        </button>
+                                        <button
+                                            onClick={() => setSocialType('microsoft')}
+                                            style={{
+                                                flex: 1,
+                                                padding: '12px',
+                                                background: '#2563eb',
+                                                border: 'none',
+                                                borderRadius: 12,
+                                                color: 'white',
+                                                cursor: 'pointer',
+                                                display: 'flex',
+                                                alignItems: 'center',
+                                                justifyContent: 'center',
+                                                gap: 8,
+                                                fontSize: 13,
+                                                fontWeight: 500,
+                                                fontFamily: 'inherit',
+                                                transition: 'all 0.2s'
+                                            }}>
+                                            <svg width="14" height="14" viewBox="0 0 21 21" fill="white">
+                                                <rect x="1" y="1" width="9" height="9" fill="white" />
+                                                <rect x="11" y="1" width="9" height="9" fill="white" />
+                                                <rect x="1" y="11" width="9" height="9" fill="white" />
+                                                <rect x="11" y="11" width="9" height="9" fill="white" />
+                                            </svg>
+                                            <span>Microsoft</span>
+                                        </button>
+                                    </div>
 
-                            {/* Divider */}
-                            <div style={{ display: 'flex', alignItems: 'center', gap: 12, margin: '20px 0' }}>
-                                <div style={{ flex: 1, height: 1, background: 'rgba(255,255,255,0.1)' }}></div>
-                                <span style={{ color: 'rgba(255,255,255,0.4)', fontSize: 11, textTransform: 'uppercase', letterSpacing: 1 }}>atau</span>
-                                <div style={{ flex: 1, height: 1, background: 'rgba(255,255,255,0.1)' }}></div>
-                            </div>
+                                    {/* Divider */}
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: 12, margin: '20px 0' }}>
+                                        <div style={{ flex: 1, height: 1, background: 'rgba(255,255,255,0.1)' }}></div>
+                                        <span style={{ color: 'rgba(255,255,255,0.4)', fontSize: 11, textTransform: 'uppercase', letterSpacing: 1 }}>atau</span>
+                                        <div style={{ flex: 1, height: 1, background: 'rgba(255,255,255,0.1)' }}></div>
+                                    </div>
 
-                            {/* Form Fields */}
-                            {/* Form Fields */}
-                            {!isLogin && (
-                                <div style={{ position: 'relative', marginBottom: 14 }}>
-                                    <span style={{ ...labelIconStyle, filter: 'drop-shadow(0 2px 3px rgba(0,0,0,0.3))' }}>
-                                        <Icon name="user" size={20} />
-                                    </span>
-                                    <input
-                                        type="text"
-                                        placeholder="Nama Lengkap"
-                                        value={name}
-                                        onChange={e => setName(e.target.value)}
-                                        style={inputStyle}
-                                        onKeyDown={(e) => e.key === "Enter" && handleSubmit()}
-                                    />
+                                    {/* Form Fields */}
+                                    {authMode === 'register' && (
+                                        <div style={{ position: 'relative', marginBottom: 14 }}>
+                                            <span style={{ ...labelIconStyle, filter: 'drop-shadow(0 2px 3px rgba(0,0,0,0.3))' }}>
+                                                <Icon name="user" size={20} />
+                                            </span>
+                                            <input
+                                                type="text"
+                                                placeholder="Nama Lengkap"
+                                                value={name}
+                                                onChange={e => setName(e.target.value)}
+                                                style={inputStyle}
+                                                onKeyDown={(e) => e.key === "Enter" && handleSubmit()}
+                                            />
+                                        </div>
+                                    )}
+
+                                    <div style={{ position: 'relative', marginBottom: 14 }}>
+                                        <span style={{ ...labelIconStyle, filter: 'drop-shadow(0 2px 3px rgba(0,0,0,0.3))' }}>
+                                            <Icon name="mail" size={20} />
+                                        </span>
+                                        <input
+                                            type="email"
+                                            placeholder="Email"
+                                            value={email}
+                                            onChange={e => setEmail(e.target.value)}
+                                            style={inputStyle}
+                                            onKeyDown={(e) => e.key === "Enter" && handleSubmit()}
+                                        />
+                                    </div>
+
+                                    <div style={{ position: 'relative', marginBottom: authMode === 'register' ? 14 : 8 }}>
+                                        <span style={{ ...labelIconStyle, filter: 'drop-shadow(0 2px 3px rgba(0,0,0,0.3))' }}>
+                                            <Icon name="lock" size={20} />
+                                        </span>
+                                        <input
+                                            type={showPassword ? "text" : "password"}
+                                            placeholder="Password"
+                                            value={password}
+                                            onChange={e => setPassword(e.target.value)}
+                                            style={inputStyle}
+                                            onKeyDown={(e) => e.key === "Enter" && handleSubmit()}
+                                        />
+                                        <span
+                                            onClick={() => setShowPassword(!showPassword)}
+                                            style={{
+                                                position: 'absolute',
+                                                right: 16,
+                                                top: '50%',
+                                                transform: 'translateY(-50%)',
+                                                cursor: 'pointer',
+                                                opacity: 0.6,
+                                                color: 'white',
+                                                zIndex: 10
+                                            }}>
+                                            <Icon name={showPassword ? "eye" : "eye-off"} size={18} />
+                                        </span>
+                                    </div>
+
+                                    {authMode === 'register' && (
+                                        <div style={{ position: 'relative', marginBottom: 8 }}>
+                                            <span style={{ ...labelIconStyle, filter: 'drop-shadow(0 2px 3px rgba(0,0,0,0.3))' }}>
+                                                <Icon name="check-circle" size={20} />
+                                            </span>
+                                            <input
+                                                type={showPassword ? "text" : "password"}
+                                                placeholder="Konfirmasi Password"
+                                                value={confirmPassword}
+                                                onChange={e => setConfirmPassword(e.target.value)}
+                                                style={inputStyle}
+                                                onKeyDown={(e) => e.key === "Enter" && handleSubmit()}
+                                            />
+                                        </div>
+                                    )}
+
+                                    {authMode === 'login' && (
+                                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+                                            <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', fontSize: 13, color: 'rgba(255,255,255,0.7)', fontWeight: 500 }}>
+                                                <input
+                                                    type="checkbox"
+                                                    checked={rememberMe}
+                                                    onChange={(e) => setRememberMe(e.target.checked)}
+                                                    style={{ width: 16, height: 16, accentColor: '#6366f1', borderRadius: 4, cursor: 'pointer' }}
+                                                />
+                                                Ingat Saya
+                                            </label>
+                                            <span onClick={() => setAuthMode('forgot_email')} style={{ color: '#6366f1', fontSize: 12, cursor: 'pointer' }}>Lupa Password?</span>
+                                        </div>
+                                    )}
+
+                                    {authMode === 'register' && (
+                                        <label style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 12, marginBottom: 16, cursor: 'pointer' }}>
+                                            <input type="checkbox" style={{ width: 18, height: 18, accentColor: '#6366f1', borderRadius: 4 }} />
+                                            <span style={{ fontSize: 12, color: 'rgba(255,255,255,0.5)', lineHeight: 1.4 }}>
+                                                Saya setuju dengan <span style={{ color: '#6366f1' }}>Ketentuan Layanan</span>
+                                            </span>
+                                        </label>
+                                    )}
+
+                                    <button
+                                        onClick={handleSubmit}
+                                        style={{
+                                            width: '100%',
+                                            padding: '16px',
+                                            background: 'linear-gradient(135deg, #6366f1, #8b5cf6)',
+                                            border: 'none',
+                                            borderRadius: 14,
+                                            color: 'white',
+                                            fontSize: 15,
+                                            fontWeight: 600,
+                                            cursor: 'pointer',
+                                            boxShadow: '0 8px 24px rgba(99, 102, 241, 0.35)',
+                                            transition: 'all 0.3s ease',
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                            justifyContent: 'center',
+                                            gap: 8
+                                        }}
+                                    >
+                                        {authMode === 'login' ? 'Masuk' : 'Daftar Sekarang'} <Icon name="arrow-right" size={18} />
+                                    </button>
+
+                                    <p style={{ textAlign: 'center', marginTop: 20, fontSize: 13, color: 'rgba(255,255,255,0.5)' }}>
+                                        {authMode === 'login' ? 'Belum punya akun? ' : 'Sudah punya akun? '}
+                                        <span onClick={() => setAuthMode(authMode === 'login' ? 'register' : 'login')} style={{ color: '#6366f1', cursor: 'pointer', fontWeight: 600 }}>
+                                            {authMode === 'login' ? 'Daftar' : 'Masuk'}
+                                        </span>
+                                    </p>
+                                </>
+                            )}
+
+                            {/* Forgot Password Flow */}
+                            {authMode === 'forgot_email' && (
+                                <div>
+                                    <div style={{ position: 'relative', marginBottom: 20 }}>
+                                        <span style={{ ...labelIconStyle }}><Icon name="mail" size={20} /></span>
+                                        <input type="email" placeholder="Email" value={email} onChange={e => setEmail(e.target.value)} style={inputStyle} />
+                                    </div>
+                                    <button onClick={handleSendOtp} style={{ width: '100%', padding: '16px', background: '#6366f1', color: 'white', border: 'none', borderRadius: 14, cursor: 'pointer', fontWeight: 600 }}>
+                                        Kirim Kode OTP
+                                    </button>
+                                    <button onClick={() => setAuthMode('login')} style={{ width: '100%', marginTop: 10, background: 'none', border: 'none', color: 'white', cursor: 'pointer' }}>
+                                        Kembali
+                                    </button>
                                 </div>
                             )}
 
-                            <div style={{ position: 'relative', marginBottom: 14 }}>
-                                <span style={{ ...labelIconStyle, filter: 'drop-shadow(0 2px 3px rgba(0,0,0,0.3))' }}>
-                                    <Icon name="mail" size={20} />
-                                </span>
-                                <input
-                                    type="email"
-                                    placeholder="Email"
-                                    value={email}
-                                    onChange={e => setEmail(e.target.value)}
-                                    style={inputStyle}
-                                    onKeyDown={(e) => e.key === "Enter" && handleSubmit()}
-                                />
-                            </div>
-
-                            <div style={{ position: 'relative', marginBottom: !isLogin ? 14 : 8 }}>
-                                <span style={{ ...labelIconStyle, filter: 'drop-shadow(0 2px 3px rgba(0,0,0,0.3))' }}>
-                                    <Icon name="lock" size={20} />
-                                </span>
-                                <input
-                                    type="password"
-                                    placeholder="Password"
-                                    value={password}
-                                    onChange={e => setPassword(e.target.value)}
-                                    style={inputStyle}
-                                    onKeyDown={(e) => e.key === "Enter" && handleSubmit()}
-                                />
-                            </div>
-
-                            {!isLogin && (
-                                <div style={{ position: 'relative', marginBottom: 8 }}>
-                                    <span style={{ ...labelIconStyle, filter: 'drop-shadow(0 2px 3px rgba(0,0,0,0.3))' }}>
-                                        <Icon name="check-circle" size={20} />
-                                    </span>
-                                    <input
-                                        type="password"
-                                        placeholder="Konfirmasi Password"
-                                        value={confirmPassword}
-                                        onChange={e => setConfirmPassword(e.target.value)}
-                                        style={inputStyle}
-                                        onKeyDown={(e) => e.key === "Enter" && handleSubmit()}
-                                    />
+                            {authMode === 'forgot_otp' && (
+                                <div>
+                                    <div style={{ position: 'relative', marginBottom: 20 }}>
+                                        <span style={{ ...labelIconStyle }}><Icon name="key" size={20} /></span>
+                                        <input type="text" placeholder="Kode OTP (6 Digit)" value={otp} onChange={e => setOtp(e.target.value)} style={inputStyle} />
+                                    </div>
+                                    <button onClick={handleVerifyOtp} style={{ width: '100%', padding: '16px', background: '#6366f1', color: 'white', border: 'none', borderRadius: 14, cursor: 'pointer', fontWeight: 600 }}>
+                                        Verifikasi
+                                    </button>
                                 </div>
                             )}
 
-                            {isLogin && (
-                                <p style={{ textAlign: 'right', marginBottom: 16 }}>
-                                    <span style={{ color: '#6366f1', fontSize: 12, cursor: 'pointer' }}>Lupa Password?</span>
-                                </p>
+                            {authMode === 'forgot_reset' && (
+                                <div>
+                                    <div style={{ position: 'relative', marginBottom: 14 }}>
+                                        <span style={{ ...labelIconStyle }}><Icon name="lock" size={20} /></span>
+                                        <input type="password" placeholder="Kata Sandi Baru" value={password} onChange={e => setPassword(e.target.value)} style={inputStyle} />
+                                    </div>
+                                    <div style={{ position: 'relative', marginBottom: 20 }}>
+                                        <span style={{ ...labelIconStyle }}><Icon name="check-circle" size={20} /></span>
+                                        <input type="password" placeholder="Konfirmasi Kata Sandi" value={confirmPassword} onChange={e => setConfirmPassword(e.target.value)} style={inputStyle} />
+                                    </div>
+                                    <button onClick={handleResetPassword} style={{ width: '100%', padding: '16px', background: '#6366f1', color: 'white', border: 'none', borderRadius: 14, cursor: 'pointer', fontWeight: 600 }}>
+                                        Simpan Kata Sandi
+                                    </button>
+                                </div>
                             )}
 
-                            {!isLogin && (
-                                <label style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 12, marginBottom: 16, cursor: 'pointer' }}>
-                                    <input type="checkbox" style={{ width: 18, height: 18, accentColor: '#6366f1', borderRadius: 4 }} />
-                                    <span style={{ fontSize: 12, color: 'rgba(255,255,255,0.5)', lineHeight: 1.4 }}>
-                                        Saya setuju dengan <span style={{ color: '#6366f1' }}>Ketentuan Layanan</span>
-                                    </span>
-                                </label>
-                            )}
-
-                            <button
-                                onClick={handleSubmit}
-                                style={{
-                                    width: '100%',
-                                    padding: '16px',
-                                    background: 'linear-gradient(135deg, #6366f1, #8b5cf6)',
-                                    border: 'none',
-                                    borderRadius: 14,
-                                    color: 'white',
-                                    fontSize: 15,
-                                    fontWeight: 600,
-                                    cursor: 'pointer',
-                                    boxShadow: '0 8px 24px rgba(99, 102, 241, 0.35)',
-                                    transition: 'all 0.3s ease',
-                                    display: 'flex',
-                                    alignItems: 'center',
-                                    justifyContent: 'center',
-                                    gap: 8
-                                }}
-                            >
-                                {isLogin ? 'Masuk' : 'Daftar Sekarang'} <Icon name="arrow-right" size={18} />
-                            </button>
-
-                            <p style={{ textAlign: 'center', marginTop: 20, fontSize: 13, color: 'rgba(255,255,255,0.5)' }}>
-                                {isLogin ? 'Belum punya akun? ' : 'Sudah punya akun? '}
-                                <span
-                                    onClick={() => setIsLogin(!isLogin)}
-                                    style={{ color: '#6366f1', cursor: 'pointer', fontWeight: 600 }}
-                                >
-                                    {isLogin ? 'Daftar' : 'Masuk'}
-                                </span>
-                            </p>
                         </div>
                     </div>
                 </Background3D>
@@ -1895,11 +1961,18 @@
 
         const Pesan = ({ userName, onNavigate }) => {
             const [filter, setFilter] = useState('inbox');
-            const chats = [
-                { name: 'Natasya Rina', msg: 'Bisa kita diskusi lebih lanjut?', time: '2m', unread: true, image: 'https://i.pravatar.cc/150?u=12' },
-                { name: 'Budi Santoso', msg: 'Terima kasih atas solusinya!', time: '1h', unread: false, image: 'https://i.pravatar.cc/150?u=1' },
-                { name: 'Ahmad Rizky', msg: 'Update hardware sudah selesai.', time: '3h', unread: false, image: 'https://i.pravatar.cc/150?u=3' }
-            ];
+            // Use state for chats to allow deletion
+            const [chats, setChats] = useState([
+                { id: 1, name: 'Natasya Rina', msg: 'Bisa kita diskusi lebih lanjut?', time: '2m', unread: true, image: 'https://i.pravatar.cc/150?u=12' },
+                { id: 2, name: 'Budi Santoso', msg: 'Terima kasih atas solusinya!', time: '1h', unread: false, image: 'https://i.pravatar.cc/150?u=1' },
+                { id: 3, name: 'Ahmad Rizky', msg: 'Update hardware sudah selesai.', time: '3h', unread: false, image: 'https://i.pravatar.cc/150?u=3' }
+            ]);
+
+            const handleDelete = (id) => {
+                if (confirm('Apakah Anda yakin ingin menghapus pesan ini?')) {
+                    setChats(chats.filter(c => c.id !== id));
+                }
+            };
 
             return (
                 <Background3D color1="var(--primary)" color2="var(--secondary)">
@@ -1930,8 +2003,8 @@
 
                             {filter === 'inbox' && (
                                 <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-                                    {chats.map((c, i) => (
-                                        <div key={i} className="card" style={{ display: 'flex', alignItems: 'center', gap: 16, margin: 0, cursor: 'pointer' }}>
+                                    {chats.map((c) => (
+                                        <div key={c.id} className="card" style={{ display: 'flex', alignItems: 'center', gap: 16, margin: 0, cursor: 'pointer' }}>
                                             <div style={{ position: 'relative' }}>
                                                 <img src={c.image} style={{ width: 50, height: 50, borderRadius: '50%', objectFit: 'cover' }} />
                                                 {c.unread && <div style={{ position: 'absolute', top: 0, right: 0, width: 12, height: 12, background: '#EF4444', borderRadius: '50%', border: '2px solid var(--bg-card)' }}></div>}
@@ -1943,8 +2016,28 @@
                                                 </div>
                                                 <div style={{ fontSize: 13, color: c.unread ? 'white' : 'var(--text-gray)', fontWeight: c.unread ? 600 : 400 }}>{c.msg}</div>
                                             </div>
+
+                                            {/* Delete Action */}
+                                            <div
+                                                onClick={(e) => { e.stopPropagation(); handleDelete(c.id); }}
+                                                style={{
+                                                    padding: 10,
+                                                    color: '#EF4444',
+                                                    borderRadius: 10,
+                                                    transition: '0.2s',
+                                                    display: 'flex',
+                                                    alignItems: 'center',
+                                                    justifyContent: 'center'
+                                                }}
+                                                onMouseOver={(e) => e.currentTarget.style.background = 'rgba(239, 68, 68, 0.1)'}
+                                                onMouseOut={(e) => e.currentTarget.style.background = 'transparent'}
+                                                title="Hapus Pesan"
+                                            >
+                                                <Icon name="trash-2" size={18} />
+                                            </div>
                                         </div>
                                     ))}
+                                    {chats.length === 0 && <div style={{ textAlign: 'center', padding: 40, color: 'var(--text-gray)' }}>Kotak masuk kosong.</div>}
                                 </div>
                             )}
                             {filter !== 'inbox' && <div style={{ padding: 40, textAlign: 'center', color: 'var(--text-gray)' }}>Folder ini kosong</div>}
@@ -2255,7 +2348,7 @@
             );
         };
 
-        const Profil = ({ userName, userRole, isPrivate, onTogglePrivate, onLogout, onNavigate }) => {
+        const Profil = ({ userName, userRole, isPrivate, onTogglePrivate, onLogout, onNavigate, onOpenDB, onOpenUserMan }) => {
             const [tab, setTab] = useState('ringkasan');
 
             return (
@@ -2373,6 +2466,23 @@
                                         <h4>Konfigurasi Aplikasi</h4>
                                         <div style={{ marginTop: 10, fontSize: 13, color: 'var(--text-gray)' }}>Versi 2.0.1</div>
                                     </div>
+
+                                    {/* ADMIN PANEL SECTION */}
+                                    {userRole === 'Admin' && (
+                                        <div className="card" style={{ marginTop: 16, border: '1px solid var(--primary)', background: 'rgba(99, 102, 241, 0.1)' }}>
+                                            <h4 style={{ color: 'var(--primary)', marginBottom: 12, display: 'flex', alignItems: 'center', gap: 8 }}>
+                                                <Icon name="shield" size={16} /> Admin Panel
+                                            </h4>
+                                            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                                                <button onClick={onOpenUserMan} style={{ padding: '10px', background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: 8, color: 'white', cursor: 'pointer', textAlign: 'left', display: 'flex', alignItems: 'center', gap: 10 }}>
+                                                    <Icon name="users" size={16} /> Kelola Pengguna & Admin
+                                                </button>
+                                                <button onClick={onOpenDB} style={{ padding: '10px', background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: 8, color: 'white', cursor: 'pointer', textAlign: 'left', display: 'flex', alignItems: 'center', gap: 10 }}>
+                                                    <Icon name="database" size={16} /> Database Manager (Redis)
+                                                </button>
+                                            </div>
+                                        </div>
+                                    )}
                                     <button
                                         onClick={onLogout}
                                         className="card"
@@ -2493,65 +2603,66 @@
                         )}
                         {/* Header with Back Button */}
                         <header className="page-header" style={{
+                            padding: '16px 20px 4px', // Compact padding
                             background: `linear-gradient(135deg, ${bidang.color || 'var(--primary)'}, ${bidang.color || 'var(--secondary)'}dd)`,
                             color: 'white',
                             boxShadow: `0 10px 30px ${(bidang.color || 'var(--primary)')}44`
                         }}>
-                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
-                                <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
-                                    <div onClick={onBack} style={{ cursor: 'pointer', padding: 8, background: 'rgba(255,255,255,0.2)', borderRadius: '50%' }}>
-                                        <Icon name="chevron-left" size={24} color="white" />
+                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                                    <div onClick={onBack} style={{ cursor: 'pointer', padding: 6, background: 'rgba(255,255,255,0.2)', borderRadius: '50%' }}>
+                                        <Icon name="chevron-left" size={20} color="white" />
                                     </div>
-                                    <h2 style={{ fontSize: 20, fontWeight: 800 }}>{bidang.name}</h2>
+                                    <h2 style={{ fontSize: 16, fontWeight: 800 }}>{bidang.name}</h2>
                                 </div>
                                 <button onClick={() => setShowMemberSelector(true)} style={{
-                                    padding: '8px 14px',
+                                    padding: '6px 12px',
                                     background: 'rgba(0,0,0,0.2)',
                                     border: '1px solid rgba(255,255,255,0.1)',
-                                    borderRadius: 12,
+                                    borderRadius: 10,
                                     color: 'white',
-                                    fontSize: 12,
+                                    fontSize: 11,
                                     fontWeight: 700,
                                     display: 'flex',
                                     alignItems: 'center',
-                                    gap: 6,
+                                    gap: 4,
                                     cursor: 'pointer'
                                 }}>
-                                    <Icon name="user-plus" size={16} /> Undangan
+                                    <Icon name="user-plus" size={14} /> Undangan
                                 </button>
                             </div>
 
-                            <div style={{ display: 'flex', alignItems: 'center', gap: 16, marginBottom: 16 }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 12 }}>
                                 <div style={{
-                                    width: 50, height: 50,
-                                    borderRadius: 14,
+                                    width: 36, height: 36,
+                                    borderRadius: 10,
                                     background: 'rgba(255,255,255,0.2)',
                                     display: 'flex', alignItems: 'center', justifyContent: 'center',
-                                    fontSize: 28
+                                    fontSize: 18
                                 }}>
                                     {bidang.icon}
                                 </div>
                                 <div>
-                                    <div style={{ fontSize: 14, fontWeight: 800 }}>{bidang.name} Expert Hub</div>
-                                    <div style={{ fontSize: 12, opacity: 0.9 }}>{discussions.length} Diskusi • {categoryData.materials?.length || 0} Materi</div>
+                                    <div style={{ fontSize: 13, fontWeight: 800 }}>{bidang.name} Expert Hub</div>
+                                    <div style={{ fontSize: 10, opacity: 0.9 }}>{discussions.length} Diskusi • {categoryData.materials?.length || 0} Materi</div>
                                 </div>
                             </div>
 
                             {/* Custom Menu Bar (Tabs) */}
-                            <div style={{ padding: '0 24px', position: 'relative', marginTop: -20, display: 'flex', gap: 8, overflowX: 'auto', zIndex: 10 }}>
+                            <div style={{ padding: '0 0 10px', position: 'relative', display: 'flex', gap: 8, overflowX: 'auto', zIndex: 10 }}>
                                 {['diskusi', 'materi', 'ahli'].map(t => (
                                     <button
                                         key={t}
                                         onClick={() => setActiveTab(t)}
                                         style={{
                                             flexShrink: 0,
-                                            padding: '12px 20px',
-                                            borderRadius: '14px',
+                                            padding: '8px 16px', // More compact tabs
+                                            borderRadius: '12px',
                                             background: activeTab === t ? (bidang.color || 'var(--primary)') : 'var(--bg-card)',
                                             color: activeTab === t ? 'white' : 'var(--text-gray)',
                                             border: `1px solid ${activeTab === t ? 'transparent' : 'var(--border)'}`,
-                                            fontWeight: 800,
-                                            fontSize: '13px',
+                                            fontWeight: 700,
+                                            fontSize: '12px',
                                             cursor: 'pointer',
                                             transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
                                             textTransform: 'capitalize',
@@ -2863,7 +2974,7 @@
             );
         };
 
-        const Home = ({ userName, userRole, checkPermission, onCreateQuestion, onBidangClick, onNavigate, onOpenDB, onLogout, knowledgeBase, getCategoryCount }) => {
+        const Home = ({ userName, userRole, checkPermission, onCreateQuestion, onBidangClick, onNavigate, onOpenDB, onLogout, knowledgeBase, getCategoryCount, categories }) => {
             const [searchTerm, setSearchTerm] = useState('');
             const [searchSource, setSearchSource] = useState('internal'); // internal, google, chatgpt, youtube
             const [showSourceSelector, setShowSourceSelector] = useState(false);
@@ -2893,20 +3004,11 @@
                 // internal search is handled by filtering the list automatically
             };
 
-            const bidangFavorit = [
-                { name: 'Hardware', icon: <img src="ICON HDW.png" alt="Hardware" style={{ width: '100%', height: '100%', objectFit: 'contain', filter: 'drop-shadow(0 4px 6px rgba(0,0,0,0.2))' }} />, color: '#3B82F6', count: '245' },
-                { name: 'Software', icon: '💿', color: '#8B5CF6', count: '189' },
-                { name: 'Network', icon: '🌐', color: '#10B981', count: '156' },
-                { name: 'Runtimes', icon: '⚡', color: '#F59E0B', count: '98' },
-                { name: 'Development', icon: '💻', color: '#EC4899', count: '203' },
-                { name: 'Security', icon: '🛡️', color: '#EF4444', count: '142' },
-                { name: 'Database', icon: '🗄️', color: '#F59E0B', count: '88' },
-                { name: 'Cloud', icon: '☁️', color: '#0EA5E9', count: '120' }
-            ];
-
-            const filteredBidang = bidangFavorit.filter(b =>
-                b.name.toLowerCase().startsWith(searchTerm.toLowerCase())
-            );
+            // Filter logic: Only filter if internal search is active. Otherwise show all (or could show none, but showing all is better UX for "dashboard" feel)
+            const filteredBidang = (categories || []).filter(b => {
+                if (searchSource !== 'internal') return true; // Don't hide grid when searching external
+                return b.name.toLowerCase().includes(searchTerm.toLowerCase());
+            });
 
             const questions = [
                 { user: "Ahmad Rizky", title: "Laptop tidak bisa connect ke WiFi kantor setelah update Windows", tags: ["Network", "Hardware"], time: "2m lalu" },
@@ -3289,7 +3391,7 @@
                             </div>
                             <div className="content-scroll-area">
                                 <KnowledgeFeed
-                                    searchTerm={searchTerm}
+                                    searchTerm={searchSource === 'internal' ? searchTerm : ''}
                                     knowledgeBase={knowledgeBase}
                                     onKnowledgeClick={(k) => {
                                         setSelectedKnowledge(k);
@@ -3441,31 +3543,129 @@
         };
 
         // --- Anggota (Membership & Friends) Screen ---
-        const Anggota = ({ isPrivateMode }) => {
+        // --- Anggota (Membership & Friends) Screen ---
+        const Anggota = ({ isPrivateMode, registeredUsers = [], onNavigate, userName }) => {
             const [searchTerm, setSearchTerm] = useState('');
-            const members = [
-                { id: 1, name: 'Budi Santoso', role: 'IT Support Senior', status: 'Online', isFriend: true, image: 'https://i.pravatar.cc/150?u=1', isPrivate: false },
-                { id: 2, name: 'Siti Aminah', role: 'Database Admin', status: 'Baru Bergabung', isFriend: false, image: 'https://i.pravatar.cc/150?u=2', isPrivate: true },
-                { id: 3, name: 'Ahmad Rizky', role: 'Network Engineer', status: 'Online', isFriend: true, image: 'https://i.pravatar.cc/150?u=3', isPrivate: false },
-                { id: 4, name: 'Dewi Lestari', role: 'Software Developer', status: 'Baru Bergabung', isFriend: false, image: 'https://i.pravatar.cc/150?u=4', isPrivate: false },
-                { id: 5, name: 'Rudi Hermawan', role: 'Security Analyst', status: 'Offline', isFriend: false, image: 'https://i.pravatar.cc/150?u=5', isPrivate: true },
-                { id: 6, name: 'Agus Setiawan', role: 'Cloud Architect', status: 'Online', isFriend: false, image: 'https://i.pravatar.cc/150?u=6', isPrivate: false }
+            const [activeTab, setActiveTab] = useState('semua'); // semua, teman, grup
+            const [selectedMember, setSelectedMember] = useState(null);
+            const [openCreateGroup, setOpenCreateGroup] = useState(false);
+
+            // Persistent Groups from Redis
+            const [groups, setGroups] = useState(() => redis.get('groups_db', []));
+
+            // Mock Members for Demo Purpose (Combined with Registered Users)
+            const mockMembers = [
+                { id: 101, name: 'Budi Santoso', role: 'IT Support Senior', status: 'Online', isFriend: true, email: 'budi.s@mrtech.com', items: 23, image: 'https://i.pravatar.cc/150?u=1', isPrivate: false },
+                { id: 102, name: 'Siti Aminah', role: 'Database Admin', status: 'Baru Bergabung', isFriend: false, email: 'siti.a@mrtech.com', items: 5, image: 'https://i.pravatar.cc/150?u=2', isPrivate: true },
+                { id: 103, name: 'Ahmad Rizky', role: 'Network Engineer', status: 'Online', isFriend: true, email: 'ahmad.r@mrtech.com', items: 15, image: 'https://i.pravatar.cc/150?u=3', isPrivate: false },
             ];
 
-            const filteredMembers = members.filter(m =>
-                m.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                m.role.toLowerCase().includes(searchTerm.toLowerCase())
-            );
+            // Transform Registered Users to Member Format
+            const dbMembers = registeredUsers.map(u => ({
+                id: u.id,
+                name: u.name,
+                role: u.role || 'User Baru',
+                status: 'Online', // Assume online for demo
+                isFriend: false,
+                email: u.email || 'user@local.com',
+                items: 1, // Default item count
+                image: `https://ui-avatars.com/api/?name=${encodeURIComponent(u.name)}&background=random`,
+                isPrivate: false,
+                weeklyStats: Array.from({ length: 7 }, () => Math.floor(Math.random() * 10)) // Random daily stats
+            }));
+
+            // Use state to manage members locally for this session (to demo Add/Remove)
+            const [allMembers, setAllMembers] = useState(() => {
+                const combined = [...mockMembers.map(m => ({
+                    ...m,
+                    weeklyStats: Array.from({ length: 7 }, () => Math.floor(Math.random() * 15))
+                })), ...dbMembers.filter(dbu => !mockMembers.some(m => m.name === dbu.name))];
+                return combined.sort((a, b) => b.items - a.items); // Initial sort by items
+            });
+
+            // Simulate updating stats automatically
+            useEffect(() => {
+                const interval = setInterval(() => {
+                    setAllMembers(prevMembers => {
+                        return prevMembers.map(m => {
+                            if (Math.random() > 0.7) { // 30% chance to update each second
+                                const newItems = m.items + 1;
+                                const newStats = [...(m.weeklyStats || [])];
+                                newStats[6] = (newStats[6] || 0) + 1; // Increment today's stat
+                                return { ...m, items: newItems, weeklyStats: newStats };
+                            }
+                            return m;
+                        }).sort((a, b) => b.items - a.items); // Re-sort dynamically
+                    });
+                }, 3000); // Pulse every 3 seconds
+
+                return () => clearInterval(interval);
+            }, []);
+
+            const filteredMembers = allMembers.filter(m => {
+                const matchesSearch = m.name.toLowerCase().includes(searchTerm.toLowerCase()) || m.role.toLowerCase().includes(searchTerm.toLowerCase());
+                if (activeTab === 'teman') return matchesSearch && m.isFriend;
+                return matchesSearch;
+            });
+
+            // Action Handlers
+            const handleAddFriend = (member) => {
+                setAllMembers(prev => prev.map(m => m.id === member.id ? { ...m, isFriend: true } : m));
+                alert(`Anda berteman dengan ${member.name}!`);
+            };
+
+            const handleRemoveUser = (member) => {
+                if (confirm(`Hapus ${member.name} dari daftar anggota?`)) {
+                    setAllMembers(prev => prev.filter(m => m.id !== member.id));
+                    setSelectedMember(null); // Close modal if open
+                }
+            };
+
+            const toggleFriendStatus = (member) => {
+                const newStatus = !member.isFriend;
+                setAllMembers(prev => prev.map(m => m.id === member.id ? { ...m, isFriend: newStatus } : m));
+                alert(newStatus ? `Ditambahkan ke teman: ${member.name}` : `Dihapus dari teman: ${member.name}`);
+                if (selectedMember && selectedMember.id === member.id) {
+                    setSelectedMember(prev => ({ ...prev, isFriend: newStatus }));
+                }
+            };
+
+            const handleCreateGroup = (e) => {
+                e.preventDefault();
+                const name = e.target.groupName.value;
+                const desc = e.target.groupDesc.value;
+                if (!name) return;
+
+                const currentUser = userName || 'Anda';
+
+                const newGroup = {
+                    id: Date.now(),
+                    name,
+                    desc: desc || 'Grup diskusi baru',
+                    members: 1, // You are the first member
+                    image: `https://ui-avatars.com/api/?name=${encodeURIComponent(name)}&background=random&color=fff`,
+                    admins: [currentUser], // Grant full admin rights
+                    createdBy: currentUser
+                };
+
+                const updatedGroups = [...groups, newGroup];
+                setGroups(updatedGroups);
+                redis.set('groups_db', updatedGroups); // Save to Redis
+
+                setOpenCreateGroup(false);
+                alert(`Grup "${name}" berhasil dibuat! Anda memiliki hak akses penuh sebagai Administrator Grup.`);
+            };
 
             return (
                 <Background3D color1="var(--primary)" color2="var(--secondary)">
                     <div className="animate">
                         <header className="page-header" style={{
-                            padding: '12px 16px 16px', borderBottomLeftRadius: 20, borderBottomRightRadius: 20,
+                            padding: '12px 16px 0', borderBottomLeftRadius: 20, borderBottomRightRadius: 20,
                             background: 'linear-gradient(135deg, var(--primary), var(--secondary))'
                         }}>
-                            <h1 style={{ fontSize: '20px', fontWeight: '800', color: 'white' }}>Anggota</h1>
-                            <p style={{ color: 'rgba(255,255,255,0.8)', fontSize: '11px', marginTop: 2 }}>Privasi Anda prioritas kami. Nama anggota yang mengaktifkan mode privat akan disamarkan.</p>
+                            <h1 style={{ fontSize: '20px', fontWeight: '800', color: 'white' }}>Anggota & Grup</h1>
+                            <p style={{ color: 'rgba(255,255,255,0.8)', fontSize: '11px', marginTop: 2 }}>Kelola koneksi dan grup kerja Anda.</p>
+
                             <div className="search-bar" style={{
                                 background: 'rgba(255,255,255,0.2)', border: 'none',
                                 marginTop: 10, padding: '8px 12px'
@@ -3473,58 +3673,415 @@
                                 <Icon name="search" color="white" size={18} />
                                 <input
                                     type="text"
-                                    placeholder="Cari nama atau divisi..."
+                                    placeholder="Cari anggota atau grup..."
                                     style={{ color: 'white', fontSize: 13 }}
                                     value={searchTerm}
                                     onChange={(e) => setSearchTerm(e.target.value)}
                                 />
                             </div>
+
+                            {/* Menu Tabs */}
+                            <div style={{ display: 'flex', gap: 20, marginTop: 16, overflowX: 'auto' }}>
+                                {['semua', 'teman', 'grup', 'kontribusi'].map(t => (
+                                    <div
+                                        key={t}
+                                        onClick={() => setActiveTab(t)}
+                                        style={{
+                                            paddingBottom: 12,
+                                            cursor: 'pointer',
+                                            borderBottom: activeTab === t ? '3px solid white' : '3px solid transparent',
+                                            fontWeight: activeTab === t ? 700 : 500,
+                                            color: activeTab === t ? 'white' : 'rgba(255,255,255,0.6)',
+                                            textTransform: 'capitalize',
+                                            fontSize: 14
+                                        }}
+                                    >
+                                        {t}
+                                    </div>
+                                ))}
+                            </div>
                         </header>
 
                         <div style={{ padding: '24px' }}>
-                            <h3 style={{ fontSize: 16, marginBottom: 16 }}>Saran Koneksi Baru</h3>
-                            <div className="horizontal-scroll" style={{ paddingBottom: 16, marginBottom: 8 }}>
-                                {members.filter(m => m.status === 'Baru Bergabung').map(m => (
-                                    <div key={m.id} className="card" style={{ minWidth: 140, textAlign: 'center', padding: 16, margin: 0 }}>
-                                        <div style={{ width: 60, height: 60, borderRadius: '50%', margin: '0 auto 12px', border: '2px solid var(--primary)', padding: 2 }}>
-                                            <img src={m.isPrivate ? 'https://www.w3schools.com/howto/img_avatar.png' : m.image} style={{ width: '100%', height: '100%', borderRadius: '50%', objectFit: 'cover', filter: m.isPrivate ? 'grayscale(1) blur(2px)' : 'none' }} />
-                                        </div>
-                                        <div style={{ fontWeight: 700, fontSize: 13, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                                            {m.isPrivate ? 'Anggota Privat' : m.name}
-                                        </div>
-                                        <div style={{ fontSize: 10, color: 'var(--text-gray)', marginBottom: 12 }}>{m.role}</div>
-                                        <button style={{ width: '100%', padding: '6px', background: 'var(--primary)', border: 'none', borderRadius: 8, color: 'white', fontSize: 11, fontWeight: 600 }}>Tambah</button>
-                                    </div>
-                                ))}
-                            </div>
-
-                            <h3 style={{ fontSize: 16, marginBottom: 16, marginTop: 16 }}>Daftar Anggota</h3>
-                            <div className="grid-responsive">
-                                {filteredMembers.map(m => (
-                                    <div key={m.id} className="card" style={{ display: 'flex', alignItems: 'center', gap: 16, padding: 16 }}>
-                                        <div style={{ position: 'relative' }}>
-                                            <img src={m.isPrivate ? 'https://www.w3schools.com/howto/img_avatar.png' : m.image} style={{ width: 50, height: 50, borderRadius: '50%', objectFit: 'cover', filter: m.isPrivate ? 'grayscale(1) blur(1px)' : 'none' }} />
-                                            <div style={{
-                                                position: 'absolute', bottom: 2, right: 2, width: 12, height: 12, borderRadius: '50%',
-                                                background: m.status === 'Online' ? '#10B981' : (m.status === 'Baru Bergabung' ? '#3B82F6' : '#8B949E'),
-                                                border: '2px solid var(--bg-card)'
-                                            }}></div>
-                                        </div>
-                                        <div style={{ flex: 1 }}>
-                                            <div style={{ fontWeight: 700, fontSize: 15 }}>{m.isPrivate ? 'Anggota Privat' : m.name}</div>
-                                            <div style={{ fontSize: 12, color: 'var(--text-gray)' }}>{m.role}</div>
-                                        </div>
-                                        <button style={{
-                                            padding: '8px 16px', background: m.isFriend ? 'rgba(255,255,255,0.05)' : 'var(--primary)',
-                                            border: m.isFriend ? '1px solid var(--border)' : 'none', borderRadius: 12,
-                                            color: m.isFriend ? 'var(--text-gray)' : 'white', fontSize: 12, fontWeight: 600, cursor: 'pointer'
-                                        }}>
-                                            {m.isFriend ? 'Teman' : 'Tambah'}
+                            {activeTab === 'grup' && (
+                                <div>
+                                    {/* Action Header for Groups */}
+                                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+                                        <h3 style={{ fontSize: 16 }}>Grup Saya ({groups.length})</h3>
+                                        <button
+                                            onClick={() => setOpenCreateGroup(true)}
+                                            style={{ padding: '8px 16px', background: 'var(--primary)', border: 'none', borderRadius: 8, color: 'white', fontWeight: 600, fontSize: 12, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6 }}
+                                        >
+                                            <Icon name="plus" size={14} /> Buat Grup
                                         </button>
                                     </div>
-                                ))}
-                            </div>
+
+                                    {groups.length === 0 ? (
+                                        <div style={{ textAlign: 'center', padding: 40, color: 'var(--text-gray)' }}>
+                                            <Icon name="users" size={48} style={{ opacity: 0.5, marginBottom: 16 }} />
+                                            <h3>Belum Ada Grup</h3>
+                                            <p style={{ fontSize: 13, maxWidth: 250, margin: '8px auto' }}>Buat grup baru untuk berkolaborasi dengan tim Anda.</p>
+                                            <button
+                                                onClick={() => setOpenCreateGroup(true)}
+                                                style={{ marginTop: 16, padding: '10px 20px', background: 'var(--primary)', border: 'none', borderRadius: 10, color: 'white', fontWeight: 700, cursor: 'pointer' }}
+                                            >
+                                                + Buat Grup
+                                            </button>
+                                        </div>
+                                    ) : (
+                                        <div className="grid-responsive">
+                                            {groups.map(g => (
+                                                <div key={g.id} className="card" style={{ padding: 16, display: 'flex', flexDirection: 'column', gap: 12 }}>
+                                                    <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                                                        <img src={g.image} style={{ width: 48, height: 48, borderRadius: 12, objectFit: 'cover' }} />
+                                                        <div>
+                                                            <div style={{ fontWeight: 700, fontSize: 15 }}>{g.name}</div>
+                                                            <div style={{ fontSize: 11, color: 'var(--text-gray)' }}>
+                                                                {g.members} Anggota
+                                                                {(g.admins && g.admins.includes(userName || 'Anda')) && <span style={{ color: '#10B981', marginLeft: 6, fontWeight: 700 }}>• 👑 Admin Akses Penuh</span>}
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                    <div style={{ fontSize: 12, color: 'var(--text-gray)', borderTop: '1px solid rgba(255,255,255,0.1)', paddingTop: 8 }}>
+                                                        {g.desc}
+                                                    </div>
+                                                    <button style={{ width: '100%', padding: '8px', background: 'rgba(255,255,255,0.05)', border: 'none', borderRadius: 8, color: 'white', fontSize: 12, fontWeight: 600, cursor: 'pointer' }}>Lihat Grup</button>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    )}
+                                </div>
+                            )}
+
+                            {(activeTab === 'semua' || activeTab === 'teman') && (
+                                <>
+                                    {activeTab === 'semua' && (
+                                        <>
+                                            <h3 style={{ fontSize: 16, marginBottom: 16 }}>Saran Koneksi Baru</h3>
+                                            <div className="horizontal-scroll" style={{ paddingBottom: 16, marginBottom: 8 }}>
+                                                {allMembers.filter(m => m.status === 'Baru Bergabung' || m.role === 'User Baru').map(m => (
+                                                    <div key={m.id} className="card" onClick={() => setSelectedMember(m)} style={{ minWidth: 140, textAlign: 'center', padding: 16, margin: 0, cursor: 'pointer' }}>
+                                                        <div style={{ width: 60, height: 60, borderRadius: '50%', margin: '0 auto 12px', border: '2px solid var(--primary)', padding: 2 }}>
+                                                            <img src={m.isPrivate ? 'https://www.w3schools.com/howto/img_avatar.png' : m.image} style={{ width: '100%', height: '100%', borderRadius: '50%', objectFit: 'cover', filter: m.isPrivate ? 'grayscale(1) blur(2px)' : 'none' }} />
+                                                        </div>
+                                                        <div style={{ fontWeight: 700, fontSize: 13, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                                                            {m.isPrivate ? 'Anggota Privat' : m.name}
+                                                        </div>
+                                                        <div style={{ fontSize: 10, color: 'var(--text-gray)', marginBottom: 12 }}>{m.role}</div>
+                                                        <button
+                                                            onClick={(e) => { e.stopPropagation(); handleAddFriend(m); }}
+                                                            style={{ width: '100%', padding: '6px', background: 'var(--primary)', border: 'none', borderRadius: 8, color: 'white', fontSize: 11, fontWeight: 600 }}
+                                                        >
+                                                            Tambah
+                                                        </button>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        </>
+                                    )}
+
+                                    <h3 style={{ fontSize: 16, marginBottom: 16, marginTop: 16 }}>{activeTab === 'teman' ? 'Teman Saya' : 'Daftar Anggota'}</h3>
+                                    <div className="grid-responsive">
+                                        {filteredMembers.map(m => (
+                                            <div key={m.id} className="card" onClick={() => setSelectedMember(m)} style={{ display: 'flex', alignItems: 'center', gap: 16, padding: 16, cursor: 'pointer' }}>
+                                                <div style={{ position: 'relative' }}>
+                                                    <img src={m.isPrivate ? 'https://www.w3schools.com/howto/img_avatar.png' : m.image} style={{ width: 50, height: 50, borderRadius: '50%', objectFit: 'cover', filter: m.isPrivate ? 'grayscale(1) blur(1px)' : 'none' }} />
+                                                    <div style={{
+                                                        position: 'absolute', bottom: 2, right: 2, width: 12, height: 12, borderRadius: '50%',
+                                                        background: m.status === 'Online' ? '#10B981' : (m.status === 'Baru Bergabung' ? '#3B82F6' : '#8B949E'),
+                                                        border: '2px solid var(--bg-card)'
+                                                    }}></div>
+                                                </div>
+                                                <div style={{ flex: 1 }}>
+                                                    <div style={{ fontWeight: 700, fontSize: 15 }}>{m.isPrivate ? 'Anggota Privat' : m.name}</div>
+                                                    <div style={{ fontSize: 12, color: 'var(--text-gray)' }}>{m.role}</div>
+                                                </div>
+                                                {/* Action Button Small */}
+                                                <div style={{ display: 'flex', gap: 8 }}>
+                                                    <button
+                                                        onClick={(e) => { e.stopPropagation(); toggleFriendStatus(m); }}
+                                                        style={{
+                                                            padding: '8px', background: m.isFriend ? 'rgba(255,255,255,0.05)' : 'var(--primary)',
+                                                            border: m.isFriend ? '1px solid var(--border)' : 'none', borderRadius: 10,
+                                                            color: m.isFriend ? 'var(--text-gray)' : 'white', cursor: 'pointer'
+                                                        }}
+                                                    >
+                                                        <Icon name={m.isFriend ? "user-check" : "user-plus"} size={16} />
+                                                    </button>
+
+                                                    {/* Delete Button (Contextual) */}
+                                                    <button
+                                                        onClick={(e) => { e.stopPropagation(); handleRemoveUser(m); }}
+                                                        style={{
+                                                            padding: '8px', background: 'rgba(239, 68, 68, 0.1)',
+                                                            border: 'none', borderRadius: 10,
+                                                            color: '#EF4444', cursor: 'pointer'
+                                                        }}
+                                                    >
+                                                        <Icon name="trash-2" size={16} />
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        ))}
+                                        {filteredMembers.length === 0 && <div style={{ color: 'var(--text-gray)', padding: 20, textAlign: 'center', width: '100%' }}>Tidak ada anggota ditemukan.</div>}
+                                    </div>
+                                </>
+                            )}
+
+                            {activeTab === 'kontribusi' && (
+                                <div>
+                                    <div style={{ textAlign: 'center', marginBottom: 30 }}>
+                                        <h2 style={{ fontSize: 18, marginBottom: 8 }}>Papan Peringkat Kontribusi</h2>
+                                        <p style={{ color: 'var(--text-gray)', fontSize: 13 }}>Top kontributor grup dan diskusi bidang.</p>
+                                    </div>
+
+                                    {/* Top 3 Podium */}
+                                    <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'flex-end', gap: 16, marginBottom: 40, height: 180 }}>
+                                        {/* 2nd Place */}
+                                        <div style={{ textAlign: 'center', width: 80 }}>
+                                            <div style={{ width: 50, height: 50, borderRadius: '50%', border: '3px solid #C0C0C0', margin: '0 auto 8px', overflow: 'hidden' }}>
+                                                <img src={allMembers[2]?.image} style={{ width: '100%', height: '100%' }} />
+                                            </div>
+                                            <div style={{ fontSize: 12, fontWeight: 700, marginBottom: 4 }}>{allMembers[2]?.name.split(' ')[0]}</div>
+                                            <div style={{ height: 80, background: 'linear-gradient(to top, #C0C0C0, rgba(192,192,192,0.2))', borderRadius: '8px 8px 0 0', display: 'flex', alignItems: 'flex-end', justifyContent: 'center', paddingBottom: 8 }}>
+                                                <span style={{ fontSize: 20, fontWeight: 800 }}>2</span>
+                                            </div>
+                                            <div style={{ fontSize: 11, color: '#C0C0C0', marginTop: 4, fontWeight: 600 }}>{allMembers[2]?.items * 15} Poin</div>
+                                        </div>
+
+                                        {/* 1st Place */}
+                                        <div style={{ textAlign: 'center', width: 90 }}>
+                                            <div style={{ position: 'relative', width: 60, height: 60, margin: '0 auto 8px' }}>
+                                                <div style={{ width: '100%', height: '100%', borderRadius: '50%', border: '3px solid #FFD700', overflow: 'hidden' }}>
+                                                    <img src={allMembers[0]?.image} style={{ width: '100%', height: '100%' }} />
+                                                </div>
+                                                <div style={{ position: 'absolute', top: -10, left: '50%', transform: 'translateX(-50%)' }}>
+                                                    <Icon name="award" size={24} color="#FFD700" fill="#FFD700" />
+                                                </div>
+                                            </div>
+                                            <div style={{ fontSize: 13, fontWeight: 800, marginBottom: 4, color: '#FFD700' }}>{allMembers[0]?.name.split(' ')[0]}</div>
+                                            <div style={{ height: 110, background: 'linear-gradient(to top, #FFD700, rgba(255,215,0,0.2))', borderRadius: '8px 8px 0 0', display: 'flex', alignItems: 'flex-end', justifyContent: 'center', paddingBottom: 8 }}>
+                                                <span style={{ fontSize: 24, fontWeight: 800 }}>1</span>
+                                            </div>
+                                            <div style={{ fontSize: 12, color: '#FFD700', marginTop: 4, fontWeight: 700 }}>{allMembers[0]?.items * 20} Poin</div>
+                                        </div>
+
+                                        {/* 3rd Place */}
+                                        <div style={{ textAlign: 'center', width: 80 }}>
+                                            <div style={{ width: 50, height: 50, borderRadius: '50%', border: '3px solid #CD7F32', margin: '0 auto 8px', overflow: 'hidden' }}>
+                                                <img src={allMembers[4]?.image} style={{ width: '100%', height: '100%' }} />
+                                            </div>
+                                            <div style={{ fontSize: 12, fontWeight: 700, marginBottom: 4 }}>{allMembers[4]?.name.split(' ')[0]}</div>
+                                            <div style={{ height: 60, background: 'linear-gradient(to top, #CD7F32, rgba(205,127,50,0.2))', borderRadius: '8px 8px 0 0', display: 'flex', alignItems: 'flex-end', justifyContent: 'center', paddingBottom: 8 }}>
+                                                <span style={{ fontSize: 20, fontWeight: 800 }}>3</span>
+                                            </div>
+                                            <div style={{ fontSize: 11, color: '#CD7F32', marginTop: 4, fontWeight: 600 }}>{allMembers[4]?.items * 10} Poin</div>
+                                        </div>
+                                    </div>
+
+                                    {/* Statistics Slide Bar (New Feature) */}
+                                    <div style={{ marginBottom: 30 }}>
+                                        <h3 style={{ fontSize: 14, marginBottom: 12, paddingLeft: 4 }}>Statistik Aktivitas</h3>
+                                        <div className="horizontal-scroll" style={{ display: 'flex', gap: 12, paddingBottom: 8, overflowX: 'auto' }}>
+                                            {/* Simulate Activity Bars for 7 Days */}
+                                            {['Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu', 'Minggu'].map((day, i) => {
+                                                const height = Math.floor(Math.random() * 60) + 20; // Random height 20-80
+                                                return (
+                                                    <div key={day} style={{
+                                                        minWidth: 60, height: 100, background: 'rgba(255,255,255,0.05)', borderRadius: 12,
+                                                        display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'flex-end', padding: 8
+                                                    }}>
+                                                        <div style={{
+                                                            width: 8, height: `${height}%`,
+                                                            background: i === 6 ? 'var(--primary)' : 'rgba(255,255,255,0.2)',
+                                                            borderRadius: 4, transition: 'height 0.5s'
+                                                        }}></div>
+                                                        <div style={{ fontSize: 10, marginTop: 8, color: 'var(--text-gray)' }}>{day.substring(0, 3)}</div>
+                                                    </div>
+                                                );
+                                            })}
+
+                                            {/* Additional 'Total' Card in Slider */}
+                                            <div style={{
+                                                minWidth: 100, height: 100, background: 'linear-gradient(135deg, var(--primary), var(--secondary))', borderRadius: 12,
+                                                display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', color: 'white'
+                                            }}>
+                                                <div style={{ fontSize: 20, fontWeight: 800 }}>84%</div>
+                                                <div style={{ fontSize: 10, opacity: 0.8 }}>Partisipasi</div>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    {/* Contribution List (Renamed & Moved Down) */}
+                                    <div style={{ background: 'rgba(255,255,255,0.05)', borderRadius: 16, padding: 20 }}>
+                                        <h3 style={{ fontSize: 14, marginBottom: 16, display: 'flex', justifyContent: 'space-between' }}>
+                                            <span>Daftar Anggota Kontribusi</span>
+                                            <span style={{ fontSize: 11, color: 'var(--text-gray)', fontWeight: 400 }}>Minggu Ini</span>
+                                        </h3>
+
+                                        {allMembers.slice(0, 6).map((m, idx) => {
+                                            const score = m.items * (20 - idx * 2); // Dummy calculation logic based on items
+                                            const maxScore = 500;
+                                            const widthPercent = Math.min((score / maxScore) * 100, 100);
+
+                                            // Assign medal icons for top 3 in list too
+                                            let medalIcon = null;
+                                            if (idx === 0) medalIcon = "🥇";
+                                            else if (idx === 1) medalIcon = "🥈"; // Assuming simplified match to index for demo
+                                            else if (idx === 2) medalIcon = "🥉";
+
+                                            return (
+                                                <div key={m.id} style={{ marginBottom: 16 }}>
+                                                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6, fontSize: 13 }}>
+                                                        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                                                            <span style={{ fontSize: 14, width: 20, textAlign: 'center' }}>{medalIcon || (idx + 1)}</span>
+                                                            <span style={{ fontWeight: idx < 3 ? 700 : 400 }}>{m.name}</span>
+                                                        </div>
+                                                        <span style={{ fontWeight: 700, color: 'var(--primary)' }}>{score}</span>
+                                                    </div>
+                                                    <div style={{ height: 8, background: 'rgba(255,255,255,0.1)', borderRadius: 4, overflow: 'hidden' }}>
+                                                        <div style={{
+                                                            height: '100%',
+                                                            width: `${widthPercent}%`,
+                                                            background: idx === 0 ? '#FFD700' : (idx === 1 ? '#C0C0C0' : (idx === 2 ? '#CD7F32' : 'var(--primary)')),
+                                                            borderRadius: 4
+                                                        }}></div>
+                                                    </div>
+                                                </div>
+                                            );
+                                        })}
+                                    </div>
+                                </div>
+                            )}
                         </div>
+
+                        {/* Profile Viewer Modal */}
+                        {selectedMember && (
+                            <div style={{
+                                position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
+                                background: 'rgba(0,0,0,0.8)', zIndex: 5000,
+                                display: 'flex', alignItems: 'center', justifyContent: 'center', pading: 20
+                            }} onClick={() => setSelectedMember(null)}>
+                                <div className="animate" style={{
+                                    width: '90%', maxWidth: 400, background: 'var(--bg-card)',
+                                    borderRadius: 24, border: '1px solid var(--primary)', overflow: 'hidden',
+                                    position: 'relative'
+                                }} onClick={e => e.stopPropagation()}>
+                                    {/* Cover Image */}
+                                    <div style={{ height: 120, background: 'linear-gradient(135deg, var(--primary), var(--secondary))' }}></div>
+
+                                    {/* Profile Image */}
+                                    <div style={{ textAlign: 'center', marginTop: -50 }}>
+                                        <div style={{
+                                            width: 100, height: 100, borderRadius: '50%', border: '4px solid var(--bg-card)',
+                                            margin: '0 auto', overflow: 'hidden', background: 'var(--bg-card)'
+                                        }}>
+                                            <img src={selectedMember.isPrivate ? 'https://www.w3schools.com/howto/img_avatar.png' : selectedMember.image} style={{ width: '100%', height: '100%', objectFit: 'cover', filter: selectedMember.isPrivate ? 'grayscale(1) blur(2px)' : 'none' }} />
+                                        </div>
+                                    </div>
+
+                                    <div style={{ padding: 24, textAlign: 'center' }}>
+                                        <h2 style={{ fontSize: 20, marginBottom: 4 }}>{selectedMember.isPrivate ? 'Anggota Privat' : selectedMember.name}</h2>
+                                        <div style={{ color: 'var(--text-gray)', fontSize: 14 }}>{selectedMember.role}</div>
+
+                                        {!selectedMember.isPrivate && (
+                                            <>
+                                                <div style={{ margin: '16px auto', display: 'flex', justifyContent: 'center', gap: 20 }}>
+                                                    <div style={{ textAlign: 'center' }}>
+                                                        <div style={{ fontWeight: 800, fontSize: 16 }}>{selectedMember.items || 0}</div>
+                                                        <div style={{ fontSize: 10, color: 'var(--text-gray)' }}>KONTRIBUSI</div>
+                                                    </div>
+                                                    <div style={{ textAlign: 'center' }}>
+                                                        <div style={{ fontWeight: 800, fontSize: 16 }}>4.8</div>
+                                                        <div style={{ fontSize: 10, color: 'var(--text-gray)' }}>RATING</div>
+                                                    </div>
+                                                    <div style={{ textAlign: 'center' }}>
+                                                        <div style={{ fontWeight: 800, fontSize: 16, color: selectedMember.status === 'Online' ? '#10B981' : 'gray' }}>{selectedMember.status}</div>
+                                                        <div style={{ fontSize: 10, color: 'var(--text-gray)' }}>STATUS</div>
+                                                    </div>
+                                                </div>
+
+                                                {/* Weekly Performance Chart (Dynamic) */}
+                                                <div style={{ margin: '20px 0', padding: 16, background: 'rgba(255,255,255,0.03)', borderRadius: 12 }}>
+                                                    <h4 style={{ fontSize: 12, marginBottom: 12, color: 'var(--text-gray)', textAlign: 'left' }}>Kinerja Mingguan</h4>
+                                                    <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', height: 60, gap: 4 }}>
+                                                        {(selectedMember.weeklyStats || [2, 5, 3, 8, 4, 6, 9]).map((val, idx) => {
+                                                            const heightPct = Math.min((val / 15) * 100, 100);
+                                                            return (
+                                                                <div key={idx} style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4 }}>
+                                                                    <div style={{
+                                                                        width: '100%',
+                                                                        height: `${Math.max(heightPct, 10)}%`,
+                                                                        background: idx === 6 ? 'var(--primary)' : 'rgba(255,255,255,0.2)',
+                                                                        borderRadius: 4,
+                                                                        transition: 'height 0.5s ease'
+                                                                    }}></div>
+                                                                    <div style={{ fontSize: 9, color: 'var(--text-gray)' }}>{['S', 'S', 'R', 'K', 'J', 'S', 'M'][idx]}</div>
+                                                                </div>
+                                                            )
+                                                        })}
+                                                    </div>
+                                                </div>
+                                            </>
+                                        )}
+
+                                        <div style={{ display: 'flex', flexDirection: 'column', gap: 12, marginTop: 24 }}>
+                                            <button
+                                                onClick={() => toggleFriendStatus(selectedMember)}
+                                                style={{
+                                                    padding: 14, background: selectedMember.isFriend ? 'var(--bg-card)' : 'var(--primary)',
+                                                    border: selectedMember.isFriend ? '1px solid var(--border)' : 'none', borderRadius: 12,
+                                                    color: 'white', fontWeight: 700, fontSize: 14, cursor: 'pointer'
+                                                }}>
+                                                {selectedMember.isFriend ? 'Hapus Teman' : 'Tambah Teman'}
+                                            </button>
+                                            <div style={{ display: 'flex', gap: 12 }}>
+                                                <button onClick={() => {
+                                                    if (onNavigate) onNavigate('pesan');
+                                                    // Optional: You could also pass the selected user to the message tab here
+                                                }} style={{ flex: 1, padding: 12, background: 'rgba(255,255,255,0.05)', border: 'none', borderRadius: 12, color: 'white', fontSize: 13, cursor: 'pointer' }}>Kirim Pesan</button>
+                                                <button onClick={() => handleRemoveUser(selectedMember)} style={{ flex: 1, padding: 12, background: 'rgba(239, 68, 68, 0.1)', border: 'none', borderRadius: 12, color: '#EF4444', fontSize: 13, cursor: 'pointer' }}>Hapus User</button>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <div onClick={() => setSelectedMember(null)} style={{ position: 'absolute', top: 10, right: 10, padding: 8, background: 'rgba(0,0,0,0.3)', borderRadius: '50%', color: 'white', cursor: 'pointer' }}>
+                                        <Icon name="x" size={20} />
+                                    </div>
+                                </div>
+                            </div>
+                        )}
+
+                        {/* Create Group Modal */}
+                        {openCreateGroup && (
+                            <div style={{
+                                position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
+                                background: 'rgba(0,0,0,0.8)', zIndex: 5000,
+                                display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20
+                            }} onClick={() => setOpenCreateGroup(false)}>
+                                <div className="animate" style={{
+                                    width: '100%', maxWidth: 360, background: 'var(--bg-card)',
+                                    borderRadius: 20, padding: 24, border: '1px solid var(--primary)',
+                                    position: 'relative'
+                                }} onClick={e => e.stopPropagation()}>
+                                    <h2 style={{ fontSize: 18, marginBottom: 16, textAlign: 'center' }}>Buat Grup Baru</h2>
+                                    <form onSubmit={handleCreateGroup} style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+                                        <div>
+                                            <label style={{ fontSize: 12, fontWeight: 600, marginBottom: 8, display: 'block' }}>Nama Grup</label>
+                                            <input name="groupName" type="text" placeholder="Contoh: Komunitas ReactJS" style={{ width: '100%', padding: 12, borderRadius: 10, border: '1px solid var(--border)', background: 'rgba(255,255,255,0.05)', color: 'white' }} required />
+                                        </div>
+                                        <div>
+                                            <label style={{ fontSize: 12, fontWeight: 600, marginBottom: 8, display: 'block' }}>Deskripsi Singkat</label>
+                                            <textarea name="groupDesc" rows="3" placeholder="Tujuan grup ini..." style={{ width: '100%', padding: 12, borderRadius: 10, border: '1px solid var(--border)', background: 'rgba(255,255,255,0.05)', color: 'white' }}></textarea>
+                                        </div>
+                                        <button type="submit" style={{ padding: 14, background: 'var(--primary)', border: 'none', borderRadius: 12, color: 'white', fontWeight: 700, fontSize: 14, marginTop: 8, cursor: 'pointer' }}>Buat Grup Sekarang</button>
+                                    </form>
+                                    <div onClick={() => setOpenCreateGroup(false)} style={{ position: 'absolute', top: 12, right: 12, cursor: 'pointer', padding: 4 }}>
+                                        <Icon name="x" size={20} color="var(--text-gray)" />
+                                    </div>
+                                </div>
+                            </div>
+                        )}
                     </div>
                 </Background3D>
             );
@@ -3810,7 +4367,7 @@
 
         // Global Categories Data (Shared)
         const CATEGORIES_DATA = [
-            { name: 'Hardware', icon: '🖥️', color: '#3B82F6' },
+            { name: 'Hardware', icon: <img src="ICON HDW.png" alt="Hardware" style={{ width: '100%', height: '100%', objectFit: 'contain', filter: 'drop-shadow(0 4px 6px rgba(0,0,0,0.2))' }} />, color: '#3B82F6' },
             { name: 'Software', icon: '💿', color: '#8B5CF6' },
             { name: 'Network', icon: '🌐', color: '#10B981' },
             { name: 'Security', icon: '🛡️', color: '#EF4444' },
@@ -3819,6 +4376,85 @@
             { name: 'Runtimes', icon: '🚀', color: '#F59E0B' },
             { name: 'Cloud', icon: '☁️', color: '#0EA5E9' }
         ];
+
+        // --- User Manager Component (Admin Only) ---
+        const UserManager = ({ onClose }) => {
+            const [users, setUsers] = useState([]);
+
+            useEffect(() => {
+                refreshUsers();
+            }, []);
+
+            const refreshUsers = () => {
+                const db = redis.get('users_db', []);
+                setUsers(db);
+            };
+
+            const toggleRole = (u) => {
+                const newRole = u.role === 'Admin' ? 'User' : 'Admin';
+                if (u.email === 'ramaeror24@gmail.com' && newRole === 'User') {
+                    alert('Tidak bisa menurunkan status Super Admin Utama!');
+                    return;
+                }
+                const updated = users.map(user => user.id === u.id ? { ...user, role: newRole } : user);
+                redis.set('users_db', updated);
+                setUsers(updated);
+            };
+
+            const deleteUser = (u) => {
+                if (u.email === 'ramaeror24@gmail.com') {
+                    alert('Super Admin tidak bisa dihapus!');
+                    return;
+                }
+                if (confirm(`Hapus user ${u.name} (${u.email})?`)) {
+                    const updated = users.filter(user => user.id !== u.id);
+                    redis.set('users_db', updated);
+                    setUsers(updated);
+                }
+            };
+
+            return (
+                <div className="db-overlay" style={{ alignItems: 'center', justifyContent: 'center' }}>
+                    <div className="animate" style={{ maxWidth: 600, width: '100%', background: '#1e1e1e', borderRadius: 16, overflow: 'hidden', display: 'flex', flexDirection: 'column', maxHeight: '80vh', border: '1px solid #333', boxShadow: '0 50px 100px rgba(0,0,0,0.5)' }}>
+                        <div style={{ padding: 20, borderBottom: '1px solid #333', display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: '#252526' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                                <Icon name="users" color="white" />
+                                <h2 style={{ fontSize: 18, color: 'white', margin: 0 }}>Kelola Pengguna ({users.length})</h2>
+                            </div>
+                            <button onClick={onClose} style={{ background: 'transparent', border: 'none', color: '#aaa', cursor: 'pointer' }}><Icon name="x" /></button>
+                        </div>
+                        <div style={{ overflowY: 'auto', padding: 20, display: 'flex', flexDirection: 'column', gap: 12 }}>
+                            <div style={{ background: 'rgba(99, 102, 241, 0.1)', padding: 12, borderRadius: 8, fontSize: 12, color: '#818cf8', display: 'flex', gap: 8, alignItems: 'center' }}>
+                                <Icon name="info" size={16} />
+                                <div>Gunakan panel ini untuk mempromosikan user menjadi Admin atau menghapus akun spam.</div>
+                            </div>
+                            {users.map(u => (
+                                <div key={u.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: '#2b2b2b', padding: 16, borderRadius: 12, border: '1px solid #3a3a3a' }}>
+                                    <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
+                                        <div style={{ width: 40, height: 40, borderRadius: '50%', background: 'linear-gradient(45deg, #3B82F6, #8B5CF6)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white', fontWeight: 'bold' }}>
+                                            {u.name.charAt(0)}
+                                        </div>
+                                        <div>
+                                            <div style={{ fontWeight: 'bold', color: 'white' }}>{u.name} {u.email === 'ramaeror24@gmail.com' && '👑'}</div>
+                                            <div style={{ fontSize: 12, color: '#aaa' }}>{u.email}</div>
+                                            <div style={{ fontSize: 11, color: u.role === 'Admin' ? '#10B981' : '#3B82F6', marginTop: 4, fontWeight: 700 }}>{u.role.toUpperCase()}</div>
+                                        </div>
+                                    </div>
+                                    <div style={{ display: 'flex', gap: 8 }}>
+                                        <button onClick={() => toggleRole(u)} style={{ padding: '8px 12px', background: u.role === 'Admin' ? 'rgba(239, 68, 68, 0.1)' : 'rgba(16, 185, 129, 0.1)', color: u.role === 'Admin' ? '#EF4444' : '#10B981', border: 'none', borderRadius: 8, cursor: 'pointer', fontSize: 11, fontWeight: 600 }}>
+                                            {u.role === 'Admin' ? 'Turunkan User' : 'Jadikan Admin'}
+                                        </button>
+                                        <button onClick={() => deleteUser(u)} style={{ padding: 10, background: '#333', color: '#EF4444', border: 'none', borderRadius: 8, cursor: 'pointer' }}>
+                                            <Icon name="trash-2" size={16} />
+                                        </button>
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+                </div>
+            );
+        };
 
         // --- MAIN APP ---
         function App() {
@@ -3834,12 +4470,18 @@
             const [selectedBidang, setSelectedBidang] = useState(null);
 
             // Load Knowledge Base & Category Data from Redis
-            // Load Knowledge Base & Category Data from Redis
             const [knowledge, setKnowledge] = useState(() => redis.get('knowledge', KNOWLEDGE_BASE));
             const [categoryData, setCategoryData] = useState(() => redis.get('categoryData', {}));
             const [notifications, setNotifications] = useState(() => redis.get('notifications', [
-                { id: 1, title: 'Selamat Datang', desc: 'Sistem siap digunakan.', time: 'Baru saja', type: 'info', target: 'home' }
+                { id: 1, title: 'Selamat Datang', desc: 'Sistem siap digunakan.', time: 'Baru saja', type: 'info', target: 'home', unread: false },
+                { id: 2, title: 'Pesan Baru', desc: 'Budi Santoso membalas komentar Anda.', time: '10m lalu', type: 'message', target: 'pesan', unread: true },
+                { id: 3, title: 'Level Up!', desc: 'Selamat! Anda naik ke Level 5 (Active Member).', time: '1j lalu', type: 'award', target: 'profil', unread: true },
+                { id: 4, title: 'Maintenance Server', desc: 'Server akan maintenance pada pukul 00:00.', time: '3j lalu', type: 'info', target: 'home', unread: false },
+                { id: 5, title: 'Diskusi Panas 🔥', desc: 'Topik "Hardware" sedang ramai dibahas user lain.', time: '5j lalu', type: 'message', target: 'bidang', targetId: 'Hardware', unread: false }
             ]));
+
+            // Registered Users State
+            const [allUsers] = useState(() => redis.get('users_db', []));
 
             // Redis Persistence Effect (Auto-Save)
             useEffect(() => {
@@ -3963,21 +4605,60 @@
                         // Backdoor Local Demo
                         if (email === 'admin' && password === 'admin') {
                             setUserName('Super Admin');
+                            redis.set('userName', 'Super Admin');
+                            setUserRole('Admin');
+                            redis.set('userRole', 'Admin');
                             setScreen('main');
                             return;
                         }
-                        alert('Email atau Password salah! Coba lagi.');
+
+                        // SUPER ADMIN BACKDOOR for requested email
+                        if (email === 'ramaeror24@gmail.com') {
+                            // Force login/register logic for this specific email
+                            alert('Selamat datang, Super Admin Rama!');
+                            const adminUser = {
+                                id: 'super-admin-rama', name: 'Rama (Super Admin)', email, password, role: 'Admin',
+                                joinedAt: new Date().toISOString()
+                            };
+                            // Ensure user exists in DB or update role
+                            const existing = users.find(u => u.email === email);
+                            if (!existing) {
+                                users.push(adminUser);
+                                redis.set('users_db', users);
+                            } else if (existing.role !== 'Admin') {
+                                existing.role = 'Admin';
+                                redis.set('users_db', users);
+                            }
+
+                            setUserName(adminUser.name);
+                            setUserRole('Admin');
+                            setScreen('main');
+                            redis.set('userName', adminUser.name);
+                            redis.set('userRole', 'Admin');
+                            redis.set('screen', 'main');
+                            return;
+                        }
+
+                        // Precise Error Handling
+                        const emailExists = users.some(u => u.email === email);
+                        if (emailExists) {
+                            alert('Password salah! Coba lagi.');
+                        } else {
+                            alert('Email belum terdaftar! Mohon pastikan email benar atau daftar akun baru.');
+                        }
                     }
                 }
             };
 
             const handleLogout = () => {
-                if (confirm('Apakah Anda yakin ingin keluar? Semua sesi akan dibersihkan demi keamanan.')) {
-                    setUserName('');
-                    setScreen('auth');
-                    setTab('home');
-                    // Secure Redis Flush
-                    redis.flushdb();
+                if (confirm('Apakah Anda yakin ingin keluar?')) {
+                    // Direct cleanup to prevent state race conditions
+                    // Clear Session Data ONLY (Preserve users_db)
+                    redis.del('userName');
+                    redis.del('userRole');
+                    redis.del('screen');
+
+                    // Force reload to clear all React states
                     window.location.reload();
                 }
             };
@@ -4002,6 +4683,7 @@
                 <div style={{ display: 'flex', width: '100%' }}>
                     {/* DBeaver Overlay */}
                     {screen === 'db_manager' && <DBManager onClose={() => setScreen('main')} />}
+                    {screen === 'user_manager' && <UserManager onClose={() => setScreen('main')} />}
 
                     {/* Desktop Sidebar */}
                     <div className="sidebar">
@@ -4047,8 +4729,9 @@
                             <Icon name="users" />
                             <span>Anggota</span>
                         </div>
-                        <div className={`nav-item ${tab === 'notif' ? 'active' : ''}`} data-menu="notif" onClick={() => setTab('notif')}>
+                        <div className={`nav-item ${tab === 'notif' ? 'active' : ''}`} data-menu="notif" onClick={() => setTab('notif')} style={{ position: 'relative' }}>
                             <Icon name="bell" />
+                            {notifications.some(n => n.unread) && <div style={{ position: 'absolute', top: 12, right: 20, width: 8, height: 8, background: '#EF4444', borderRadius: '50%', border: '1px solid var(--bg-card)' }}></div>}
                             <span>Notifikasi</span>
                         </div>
                         <div className={`nav-item ${tab === 'profil' ? 'active' : ''}`} data-menu="profil" onClick={() => setTab('profil')}>
@@ -4088,6 +4771,7 @@
                                     onLogout={handleLogout}
                                     knowledgeBase={knowledge}
                                     getCategoryCount={getCategoryCount}
+                                    categories={CATEGORIES_DATA}
                                 />
                             )}
                         </div>
@@ -4114,7 +4798,7 @@
 
                         {/* Persistent Tabs (Instant Access) */}
                         <div style={{ display: tab === 'pesan' ? 'block' : 'none' }}><Pesan userName={userName} onNavigate={(target) => setTab(target)} /></div>
-                        <div style={{ display: tab === 'anggota' ? 'block' : 'none' }}><Anggota isPrivateMode={isPrivate} /></div>
+                        <div style={{ display: tab === 'anggota' ? 'block' : 'none' }}><Anggota isPrivateMode={isPrivate} registeredUsers={allUsers} onNavigate={(target) => setTab(target)} userName={userName} /></div>
                         <div style={{ display: tab === 'notif' ? 'block' : 'none' }}>
                             <Notifikasi
                                 onNavigate={(target) => setTab(target)}
@@ -4130,6 +4814,8 @@
                                 onTogglePrivate={() => setIsPrivate(!isPrivate)}
                                 onLogout={handleLogout}
                                 onNavigate={(target) => setTab(target)}
+                                onOpenDB={() => setScreen('db_manager')}
+                                onOpenUserMan={() => setScreen('user_manager')}
                             />
                         </div>
                         <div style={{ display: tab === 'bantuan' ? 'block' : 'none' }}><Bantuan onNavigate={(target) => setTab(target)} /></div>
@@ -4154,8 +4840,9 @@
                             <Icon name="users" />
                             <span>Anggota</span>
                         </div>
-                        <div className={`nav-item ${tab === 'notif' ? 'active' : ''}`} data-menu="notif" onClick={() => setTab('notif')}>
+                        <div className={`nav-item ${tab === 'notif' ? 'active' : ''}`} data-menu="notif" onClick={() => setTab('notif')} style={{ position: 'relative' }}>
                             <Icon name="bell" />
+                            {notifications.some(n => n.unread) && <div style={{ position: 'absolute', top: 10, right: 'calc(50% - 10px)', width: 8, height: 8, background: '#EF4444', borderRadius: '50%', border: '1px solid var(--bg-card)' }}></div>}
                             <span>Notifikasi</span>
                         </div>
                         <div className={`nav-item ${tab === 'profil' ? 'active' : ''}`} data-menu="profil" onClick={() => setTab('profil')}>
