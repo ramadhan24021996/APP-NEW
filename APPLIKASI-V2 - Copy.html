@@ -1723,7 +1723,7 @@
 
         const getT = (lang) => TRANSLATIONS[lang] || TRANSLATIONS.id;
 
-        const QuestionCard = ({ user, title, tags, comments = 0, participants = [], onReply, onAddColleague }) => {
+        const QuestionCard = ({ user, title, tags, comments = 0, participants = [], onReply, onAddColleague, onDelete }) => {
             return (
                 <div className="card animate">
                     <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '12px' }}>
