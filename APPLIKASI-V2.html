@@ -1076,7 +1076,7 @@
             { id: 'u4', name: 'Rudi Hermawan', role: 'Security Analyst', image: 'https://ui-avatars.com/api/?name=Rudi+Hermawan&background=random&color=fff' }
         ];
 
-        const QuestionCard = ({ user, title, tags, comments = 0, participants = [], onReply, onAddColleague }) => {
+        const QuestionCard = ({ user, currentUser, title, tags, comments = 0, participants = [], onReply, onAddColleague, onDelete }) => {
             return (
                 <div className="card animate">
                     <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '12px' }}>
@@ -1119,7 +1119,7 @@
                         </div>
                         <div onClick={onAddColleague} style={{ display: 'flex', alignItems: 'center', gap: '6px', color: 'var(--text-gray)', fontSize: '12px', cursor: 'pointer' }}>
                             <Icon name="user-plus" size={16} />
-                            <span style={{ color: participants.some(p => p.name === user) ? 'var(--primary)' : 'inherit' }}>Ikut Serta</span>
+                            <span style={{ color: participants.some(p => p.name === currentUser) ? 'var(--primary)' : 'inherit' }}>Ikut Serta</span>
                         </div>
                         <div onClick={(e) => { e.stopPropagation(); globalShare({ title: 'Diskusi IT', text: `Yuk bantu jawab diskusi ini: "${title}"` }); }} style={{ display: 'flex', alignItems: 'center', gap: '6px', color: 'var(--text-gray)', fontSize: '12px', cursor: 'pointer' }}>
                             <Icon name="share-2" size={16} />
@@ -2975,7 +2975,13 @@
 
             const selectMember = (member) => {
                 if (selectedDiscussionIdx === null) {
-                    alert(`Rekan "${member.name}" berhasil dihubungkan ke bidang ini.`);
+                    const currentMembers = categoryData.members || [];
+                    if (!currentMembers.find(m => m.name === member.name)) {
+                        onUpdateCategoryData(bidang.name, { ...categoryData, members: [...currentMembers, member] });
+                        alert(`Rekan "${member.name}" berhasil bergabung ke bidang ini.`);
+                    } else {
+                        alert(`Rekan "${member.name}" sudah ada di bidang ini.`);
+                    }
                     setShowMemberSelector(false);
                     return;
                 }
@@ -3113,7 +3119,7 @@
                                             {discussions.length === 0 && <div style={{ textAlign: 'center', color: 'var(--text-gray)', padding: 20 }}>Belum ada materi diskusi di bidang ini.</div>}
                                             {discussions.map((d, i) => (
                                                 <QuestionCard
-                                                    key={i} user={d.user} title={d.title} tags={d.tags} comments={d.comments} participants={d.participants}
+                                                    key={i} user={d.user} currentUser={currentUserName} title={d.title} tags={d.tags} comments={d.comments} participants={d.participants}
                                                     onReply={() => handleReplyTo(d.user)}
                                                     onAddColleague={() => { setSelectedDiscussionIdx(i); setShowMemberSelector(true); }}
                                                     onDelete={() => {
