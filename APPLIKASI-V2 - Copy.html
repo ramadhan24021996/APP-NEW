@@ -648,6 +648,56 @@
             filter: drop-shadow(0 4px 8px currentColor);
         }
 
+        /* --- Pull To Refresh Styles --- */
+        .ptr-container {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 70px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 10000;
+            pointer-events: none;
+            transition: transform 0.1s ease-out, opacity 0.2s;
+        }
+
+        .ptr-indicator {
+            width: 38px;
+            height: 38px;
+            border-radius: 50%;
+            background: var(--bg-card);
+            border: 2px solid var(--primary);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.5);
+            color: var(--primary);
+            transform: scale(0.5);
+            opacity: 0;
+            transition: transform 0.2s, opacity 0.2s;
+        }
+
+        .ptr-indicator.visible {
+            transform: scale(1);
+            opacity: 1;
+        }
+
+        .ptr-spinning {
+            animation: ptr-spin 0.8s linear infinite;
+        }
+
+        @keyframes ptr-spin {
+            from {
+                transform: rotate(0deg);
+            }
+
+            to {
+                transform: rotate(360deg);
+            }
+        }
+
         .fab {
             position: fixed;
             bottom: 100px;
@@ -5100,6 +5150,64 @@
             const [userFriends, setUserFriends] = useState(() => redis.get('userFriends', []));
             const [selectedBidang, setSelectedBidang] = useState(null);
 
+            // Pull To Refresh States
+            const [ptrProgress, setPtrProgress] = useState(0);
+            const [isPtrRefreshing, setIsPtrRefreshing] = useState(false);
+            const ptrStartY = useRef(-1);
+
+            const ptrHandleTouchStart = (e) => {
+                const scrollable = document.querySelector('.page-container-3d') ||
+                    document.querySelector('.app-content') ||
+                    document.querySelector('.main-content') ||
+                    document.body;
+
+                if (scrollable && scrollable.scrollTop <= 0) {
+                    ptrStartY.current = e.touches[0].pageY;
+                } else {
+                    ptrStartY.current = -1;
+                }
+            };
+
+            const ptrHandleTouchMove = (e) => {
+                if (ptrStartY.current === -1 || isPtrRefreshing) return;
+
+                const currentY = e.touches[0].pageY;
+                const diff = currentY - ptrStartY.current;
+
+                if (diff > 0) {
+                    const progress = Math.min(diff / 150, 1.2);
+                    setPtrProgress(progress);
+                    if (progress > 0 && e.cancelable) e.preventDefault();
+                }
+            };
+
+            const ptrHandleTouchEnd = () => {
+                if (isPtrRefreshing || ptrStartY.current === -1) {
+                    ptrStartY.current = -1;
+                    return;
+                }
+
+                if (ptrProgress >= 1) {
+                    setIsPtrRefreshing(true);
+                    setPtrProgress(1);
+                    if ("vibrate" in navigator) navigator.vibrate(10);
+
+                    setTimeout(() => {
+                        setIsPtrRefreshing(false);
+                        setPtrProgress(0);
+                        addNotification({
+                            title: 'Data Diperbarui',
+                            desc: 'Konten aplikasi telah berhasil disinkronkan.',
+                            type: 'info',
+                            target: 'home'
+                        });
+                    }, 1500);
+                } else {
+                    setPtrProgress(0);
+                }
+                ptrStartY.current = -1;
+            };
+
             // Load Knowledge Base & Category Data from Redis
             const [knowledge, setKnowledge] = useState(() => redis.get('knowledge', KNOWLEDGE_BASE));
             const [categoryData, setCategoryData] = useState(() => redis.get('categoryData', {}));
@@ -5404,10 +5512,26 @@
                             <Icon name="user" />
                             <span>Profil</span>
                         </div>
+                    </div >
+
+                    {/* Pull To Refresh UI */}
+                    <div className="ptr-container" style={{
+                        transform: `translateY(${ptrProgress * 80}px)`,
+                        opacity: ptrProgress > 0.1 ? 1 : 0
+                    }}>
+                        <div className={`ptr-indicator ${ptrProgress > 0.2 ? 'visible' : ''} ${isPtrRefreshing ? 'ptr-spinning' : ''}`} style={{
+                            transform: isPtrRefreshing ? 'none' : `rotate(${ptrProgress * 360}deg) scale(${Math.min(ptrProgress, 1)})`
+                        }}>
+                            <Icon name={isPtrRefreshing ? "loader-2" : "arrow-down"} size={20} />
+                        </div>
                     </div>
 
                     {/* Main Mobile/Desktop Content Area - Optimized for Instant Switching (No Loading) */}
-                    <div className="main-content">
+                    <div className="main-content"
+                        onTouchStart={ptrHandleTouchStart}
+                        onTouchMove={ptrHandleTouchMove}
+                        onTouchEnd={ptrHandleTouchEnd}
+                    >
                         {/* Home & Bidang Detail Layer */}
                         <div style={{ display: tab === 'home' ? 'block' : 'none' }}>
                             {
