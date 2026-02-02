@@ -104,13 +104,13 @@
             width: 100%;
             max-width: var(--container-max);
             margin: 0 auto;
-            padding: 0 var(--gap-responsive);
+            padding: 0 clamp(12px, 3vw, 24px);
         }
 
         .grid-responsive {
             display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(clamp(150px, 25vw, 300px), 1fr));
-            gap: clamp(12px, 3vw, 24px);
+            grid-template-columns: repeat(auto-fill, minmax(clamp(140px, 22vw, 280px), 1fr));
+            gap: clamp(10px, 2vw, 20px);
             width: 100%;
         }
 
@@ -124,7 +124,7 @@
         }
 
         .page-header {
-            padding: clamp(30px, 6vw, 50px) var(--gap-responsive);
+            padding: clamp(20px, 5vw, 40px) var(--gap-responsive);
             border-radius: 0 0 var(--radius-lg) var(--radius-lg);
             position: relative;
         }
@@ -212,9 +212,9 @@
         .app-content {
             flex: 1;
             overflow-y: auto;
-            padding: 24px;
-            padding-bottom: 140px;
-            /* Jarak aman agar tidak tertutup nav bar */
+            padding: clamp(16px, 4vw, 32px);
+            padding-bottom: 120px;
+            /* Space for bottom nav */
             position: relative;
         }
 
@@ -520,17 +520,17 @@
         /* --- Enhanced Navigation --- */
         .bottom-nav {
             position: fixed;
-            bottom: 20px;
-            left: 20px;
-            right: 20px;
+            bottom: calc(16px + env(safe-area-inset-bottom));
+            left: 16px;
+            right: 16px;
             background: rgba(22, 27, 34, 0.85);
             backdrop-filter: blur(30px) saturate(180%);
             -webkit-backdrop-filter: blur(30px) saturate(180%);
             border: 1px solid rgba(255, 255, 255, 0.1);
-            border-radius: 24px;
+            border-radius: 20px;
             display: flex;
             justify-content: space-around;
-            padding: 10px;
+            padding: 8px;
             z-index: 1000;
             box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5), inset 0 0 0 1px rgba(255, 255, 255, 0.05);
         }
@@ -825,17 +825,13 @@
                 position: relative;
             }
 
-            /* Remove sidebar padding when Auth/Splash screen is present */
-            /* Remove sidebar padding when Auth/Splash screen is present */
             body:has(.auth-screen) #root,
             body:has(.splash-screen) #root,
             body:has(.onboarding-screen) #root {
                 padding-left: 0 !important;
                 padding-top: 0 !important;
-                /* Force reset top padding */
                 justify-content: center !important;
                 align-items: center !important;
-                /* Force vertical center */
                 height: 100vh !important;
             }
 
@@ -855,7 +851,6 @@
                 min-height: 100vh;
             }
 
-            /* Reset padding bottom for desktop since nav bar is hidden */
             .page-container-3d,
             .app-content {
                 padding-bottom: 40px !important;
@@ -893,13 +888,11 @@
                 height: 64px;
             }
 
-            /* Improve Grid Layouts */
             .grid-container {
                 display: grid;
                 grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
                 gap: 24px;
                 max-width: 1200px;
-                /* Layout Limit */
                 margin: 0 auto;
             }
 
@@ -1033,7 +1026,7 @@
     </div>
 
     <script type="text/babel">
-        const { useState, useEffect, useRef } = React;
+        const { useState, useEffect, useRef, useMemo } = React;
 
         // --- UI COMPONENTS ---
         const Icon = ({ name, size = 20, color = "currentColor" }) => {
@@ -1068,15 +1061,52 @@
             }
         };
 
+        // Utility: Render Text with clickable @User Mentions
+        const renderTextWithMentions = (text, onTagClick) => {
+            if (!text || typeof text !== 'string') return text;
+            const parts = text.split(/(\s+)/);
+            return parts.map((part, i) => {
+                if (part.startsWith('@') && part.length > 1) {
+                    const cleanName = part.substring(1).replace(/[:;,.!?]$/, '');
+                    return (
+                        <span
+                            key={i}
+                            onClick={(e) => {
+                                e.stopPropagation();
+                                if (onTagClick) onTagClick(cleanName);
+                            }}
+                            className="user-tag"
+                            style={{
+                                color: '#fbbf24',
+                                fontWeight: 'bold',
+                                cursor: 'pointer',
+                                background: 'rgba(251, 191, 36, 0.1)',
+                                padding: '0 4px',
+                                borderRadius: '4px',
+                                transition: 'all 0.2s'
+                            }}
+                        >
+                            {part}
+                        </span>
+                    );
+                }
+                return part;
+            });
+        };
+
         // Global Constants
+        const DEMO_MEMBERS = [
+            { id: 101, name: 'Budi Santoso', role: 'IT Support Senior', status: 'Online', email: 'budi.s@mrtech.com', image: 'https://i.pravatar.cc/150?u=1' },
+            { id: 102, name: 'Siti Aminah', role: 'Database Admin', status: 'Baru Bergabung', email: 'siti.a@mrtech.com', image: 'https://i.pravatar.cc/150?u=2' },
+            { id: 103, name: 'FAHRIL', role: 'System Architect', status: 'Online', email: 'fahril@mrtech.com', image: 'https://i.pravatar.cc/150?u=3' },
+            { id: 104, name: 'Natasya Rina', role: 'UI/UX Designer', status: 'Busy', email: 'natasya@mrtech.com', image: 'https://i.pravatar.cc/150?u=12' }
+        ];
+
         const REGISTERED_MEMBERS = [
             { id: 'u1', name: 'Rama (Admin)', role: 'Administrator IT', image: 'https://ui-avatars.com/api/?name=Rama&background=000&color=fff' },
             { id: 'u2', name: 'Siti Aminah', role: 'Hardware Specialist', image: 'https://ui-avatars.com/api/?name=Siti+Aminah&background=random&color=fff' },
             { id: 'u3', name: 'Budi Santoso', role: 'Network Engineer', image: 'https://ui-avatars.com/api/?name=Budi+Santoso&background=random&color=fff' },
-            { id: 'u4', name: 'Rudi Hermawan', role: 'Security Analyst', image: 'https://ui-avatars.com/api/?name=Rudi+Hermawan&background=random&color=fff' },
-            { id: 'u5', name: 'Andi Pratama', role: 'Network Engineer', image: 'https://i.pravatar.cc/150?u=3' },
-            { id: 'u6', name: 'Dewi Lestari', role: 'System Analyst', image: 'https://i.pravatar.cc/150?u=4' },
-            { id: 'u7', name: 'Eko Kurniawan', role: 'DevOps Engineer', image: 'https://i.pravatar.cc/150?u=5' }
+            { id: 'u4', name: 'Rudi Hermawan', role: 'Security Analyst', image: 'https://ui-avatars.com/api/?name=Rudi+Hermawan&background=random&color=fff' }
         ];
 
         const TRANSLATIONS = {
@@ -1161,31 +1191,8 @@
                 auth_back_login: 'Kembali Login',
                 auth_social_connecting: 'Menghubungkan ke {type}...',
                 auth_social_wait: 'Mohon tunggu, sedang memverifikasi kredensial Anda.',
-                home_search_internal: 'Cari bidang...',
-                home_search_google: 'Ketik & cari di Google...',
-                home_search_chatgpt: 'Tanya AI (ChatGPT)...',
-                home_search_youtube: 'Cari panduan video...',
-                home_source_title: 'Sumber Bantuan',
-                home_source_open: 'Buka {name}',
                 auth_err_required: 'Email dan Password wajib diisi',
                 auth_err_email_required: 'Email wajib diisi',
-                msg_folder_empty: 'Folder ini kosong',
-                data_refreshed: 'Data Diperbarui',
-                data_sync_success: 'Konten aplikasi telah berhasil disinkronkan.',
-                help_desc_general: 'Aplikasi Belajar Bersama Dirancang untuk memudahkan kolaborasi tim dalam berbagi pengetahuan dan penyelesaian masalah teknis.',
-                help_faq_q1: 'Bagaimana cara menambahkan materi?',
-                help_faq_a1: 'Anda dapat menambahkan materi melalui menu Bidang Detail di tab Materi.',
-                help_faq_q2: 'Apakah chat bersifat pribadi?',
-                help_faq_a2: 'Ya, chat antar pengguna dienkripsi. Namun diskusi publik dapat dilihat oleh semua anggota.',
-                help_contact_desc: 'Butuh bantuan lebih lanjut? Hubungi tim support kami.',
-                help_btn_cs: 'Hubungi Customer Service',
-                help_tab_tos: 'Syarat & Ketentuan',
-                help_tab_privacy: 'Kebijakan Privasi',
-                activity_login: 'Login ke sistem',
-                activity_profile: 'Membuka menu Profil',
-                activity_notif: 'Melihat notifikasi',
-                mins_ago: '{n}m lalu',
-                hours_ago: '{n}j lalu',
                 auth_err_name: 'Nama Lengkap wajib diisi',
                 auth_err_match: 'Konfirmasi password tidak cocok',
                 auth_err_length: 'Password minimal 6 karakter',
@@ -1378,30 +1385,7 @@
                 help_ver: 'Versi',
                 help_dev: 'Developer',
                 help_need_more: 'Butuh Bantuan Lebih?',
-                help_btn_email: 'Email IT Support',
-                profile_err_size: 'Ukuran file terlalu besar! Maksimal 2MB.',
-                profile_skill_prompt: 'Tambah Keahlian Baru (mis: ReactJS, Python):',
-                profile_skill_exist: 'Keahlian sudah ada!',
-                profile_skill_delete_confirm: 'Hapus keahlian "{skill}"?',
-                profile_pass_err: 'Mohon isi password lama dan baru.',
-                profile_pass_success: 'Password berhasil diperbarui! Silakan login ulang nanti.',
-                profile_photo_url_placeholder: 'URL Foto Profil',
-                profile_upload_label: 'Unggah Foto',
-                profile_verified: 'Terverifikasi',
-                profile_stat_discuss_detail: 'Detail statistik diskusi Anda',
-                profile_stat_solution_detail: 'Detail persentase solusi Anda',
-                profile_stat_points_detail: 'Detail perolehan poin Anda',
-                profile_no_skills: 'Belum ada keahlian ditambahkan.',
-                profile_version: 'Versi {ver} (Build {build})',
-                profile_admin_panel: 'Admin Panel',
-                profile_admin_users: 'Kelola Pengguna & Admin',
-                profile_admin_db: 'Database Manager (Redis)',
-                auth_err_wrong_pass: 'Password salah! Coba lagi.',
-                auth_err_email_unregistered: 'Email belum terdaftar! Mohon pastikan email benar atau daftar akun baru.',
-                auth_confirm_logout: 'Apakah Anda yakin ingin keluar?',
-                auth_err_name_required: 'Mohon isi nama Anda',
-                common_you: 'Anda',
-                common_employee: 'Karyawan',
+                help_btn_email: 'Email IT Support'
             },
             en: {
                 // Common
@@ -1484,31 +1468,8 @@
                 auth_back_login: 'Back to Login',
                 auth_social_connecting: 'Connecting to {type}...',
                 auth_social_wait: 'Please wait, verifying your credentials.',
-                home_search_internal: 'Search fields...',
-                home_search_google: 'Type & search on Google...',
-                home_search_chatgpt: 'Ask AI (ChatGPT)...',
-                home_search_youtube: 'Search video guides...',
-                home_source_title: 'Help Source',
-                home_source_open: 'Open {name}',
                 auth_err_required: 'Email and Password are required',
                 auth_err_email_required: 'Email is required',
-                msg_folder_empty: 'This folder is empty',
-                data_refreshed: 'Data Refreshed',
-                data_sync_success: 'Application content has been successfully synchronized.',
-                help_desc_general: 'The Belajar Bersama Application is designed to facilitate team collaboration in knowledge sharing and technical problem solving.',
-                help_faq_q1: 'How do I add materials?',
-                help_faq_a1: 'You can add materials through the Field Detail menu in the Materials tab.',
-                help_faq_q2: 'Is the chat private?',
-                help_faq_a2: 'Yes, user-to-user chats are encrypted. However, public discussions can be seen by all members.',
-                help_contact_desc: 'Need further help? Contact our support team.',
-                help_btn_cs: 'Contact Customer Service',
-                help_tab_tos: 'Terms of Service',
-                help_tab_privacy: 'Privacy Policy',
-                activity_login: 'Logged into system',
-                activity_profile: 'Opened Profile menu',
-                activity_notif: 'Viewed notifications',
-                mins_ago: '{n}m ago',
-                hours_ago: '{n}h ago',
                 auth_err_name: 'Full Name is required',
                 auth_err_match: 'Passwords do not match',
                 auth_err_length: 'Password must be at least 6 characters',
@@ -1619,30 +1580,11 @@
 
                 // Notifikasi
                 notif_title: 'Notifications',
+                notif_all: 'All',
+                notif_discuss: 'Messages & Discussions',
+                notif_achievement: 'Achievement',
+                notif_system: 'System',
                 notif_empty: 'No notifications in this category.',
-                profile_err_size: 'File size too large! Max 2MB.',
-                profile_skill_prompt: 'Add New Skill (e.g., ReactJS, Python):',
-                profile_skill_exist: 'Skill already exists!',
-                profile_skill_delete_confirm: 'Remove skill "{skill}"?',
-                profile_pass_err: 'Please fill in both old and new passwords.',
-                profile_pass_success: 'Password updated successfully! Please re-login later.',
-                profile_photo_url_placeholder: 'Profile Photo URL',
-                profile_upload_label: 'Upload Photo',
-                profile_verified: 'Verified',
-                profile_stat_discuss_detail: 'Your discussion statistics details',
-                profile_stat_solution_detail: 'Your solution percentage details',
-                profile_stat_points_detail: 'Your points earnings details',
-                profile_no_skills: 'No skills added yet.',
-                profile_version: 'Version {ver} (Build {build})',
-                profile_admin_panel: 'Admin Panel',
-                profile_admin_users: 'Manage Users & Admins',
-                profile_admin_db: 'Database Manager (Redis)',
-                auth_err_wrong_pass: 'Incorrect password! Please try again.',
-                auth_err_email_unregistered: 'Email not registered! Please ensure the email is correct or create a new account.',
-                auth_confirm_logout: 'Are you sure you want to log out?',
-                auth_err_name_required: 'Please fill in your name',
-                common_you: 'You',
-                common_employee: 'Employee',
 
                 // Anggota
                 member_title: 'Members & Groups',
@@ -1784,9 +1726,6 @@
             );
         };
 
-
-
-
         const KNOWLEDGE_BASE = [
             {
                 id: 'wifi', icon: 'wifi-off', color: '#3B82F6',
@@ -1877,8 +1816,9 @@
                             zIndex: 2,
                             padding: '20px'
                         }}>
-                            <img src="MR.png" alt="MR Tech Logo" style={{
+                            <img src="WhatsApp Image 2026-02-01 at 20.04.56.jpeg" alt="MR Tech Logo" style={{
                                 width: '100%',
+                                maxWidth: '100%',
                                 height: 'auto',
                                 objectFit: 'contain',
                                 filter: 'drop-shadow(0 0 30px rgba(255, 215, 0, 0.4))', // Enhanced Gold Glow
@@ -2317,15 +2257,17 @@
                             background: 'rgba(255,255,255,0.03)',
                             backdropFilter: 'blur(30px) saturate(150%)',
                             borderRadius: 24,
-                            padding: '30px',
+                            padding: 'clamp(20px, 5vw, 30px)',
                             border: '1px solid rgba(255,255,255,0.1)',
                             boxShadow: '0 25px 50px -12px rgba(0,0,0,0.5)',
-                            maxWidth: 360,
-                            width: '100%',
-                            maxHeight: '90vh',
+                            maxWidth: 380,
+                            width: 'calc(100% - 32px)',
+                            margin: 'auto',
+                            maxHeight: '95vh',
                             display: 'flex',
                             flexDirection: 'column',
-                            justifyContent: 'center'
+                            justifyContent: 'center',
+                            overflowY: 'auto'
                         }}>
                             <div style={{ textAlign: 'center', marginBottom: 20, flexShrink: 0 }}>
                                 <div style={{
@@ -2628,8 +2570,8 @@
         };
 
         // --- Bidang (Categories) Screen ---
-        const Bidang = ({ onBidangClick, getCategoryCount, t }) => {
-            const categories = [
+        const Bidang = ({ onBidangClick, getCategoryCount, t, categories: propCategories }) => {
+            const defaultCategories = [
                 { name: 'Hardware', icon: '🖥️', color: '#3B82F6' },
                 { name: 'Software', icon: '💿', color: '#8B5CF6' },
                 { name: 'Network', icon: '🌐', color: '#10B981' },
@@ -2639,6 +2581,8 @@
                 { name: 'Runtimes', icon: '🚀', color: '#F59E0B' },
                 { name: 'Cloud', icon: '☁️', color: '#0EA5E9' }
             ];
+
+            const displayCategories = propCategories || defaultCategories;
 
             return (
                 <Background3D color1="var(--primary)" color2="var(--secondary)">
@@ -2658,7 +2602,7 @@
                         </header>
                         <div className="container" style={{ padding: '24px 0' }}>
                             <div className="grid-responsive">
-                                {categories.map(cat => (
+                                {displayCategories.map(cat => (
                                     <div key={cat.name} className="card bidang-card" onClick={() => onBidangClick && onBidangClick(cat)} style={{
                                         '--glow-color': cat.color,
                                         position: 'relative'
@@ -2694,8 +2638,86 @@
             );
         };
 
-        const Pesan = ({ userName, onNavigate, t }) => {
+        const ChatInput = ({ onSend }) => {
+            const [message, setMessage] = useState('');
+            const [showEmojiPicker, setShowEmojiPicker] = useState(false);
+
+            const handleSendClick = () => {
+                if (message.trim()) {
+                    onSend(message);
+                    setMessage('');
+                    setShowEmojiPicker(false);
+                }
+            };
+
+            const handleEmojiSelect = (emoji) => {
+                setMessage(prev => prev + emoji);
+            };
+
+            return (
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10, background: 'var(--bg-card)', padding: 10, borderRadius: 14, border: '1px solid var(--border)', position: 'relative' }}>
+                    <button onClick={() => setShowEmojiPicker(!showEmojiPicker)} style={{ background: 'none', border: 'none', color: 'var(--text-gray)', cursor: 'pointer', padding: 5, display: 'flex', alignItems: 'center' }}>
+                        <Icon name="smile" size={20} />
+                    </button>
+                    <input
+                        type="text"
+                        value={message}
+                        onChange={(e) => setMessage(e.target.value)}
+                        onKeyPress={(e) => { if (e.key === 'Enter') handleSendClick(); }}
+                        placeholder="Ketik pesan..."
+                        style={{ flex: 1, background: 'none', border: 'none', color: 'white', fontSize: 14, padding: '8px 0', outline: 'none' }}
+                    />
+                    <button onClick={handleSendClick} style={{ background: 'var(--primary)', border: 'none', borderRadius: 10, padding: '8px 12px', color: 'white', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 5 }}>
+                        <Icon name="send" size={18} />
+                    </button>
+
+                    {showEmojiPicker && (
+                        <div style={{
+                            position: 'absolute',
+                            bottom: 'calc(100% + 10px)',
+                            left: 0,
+                            background: 'var(--bg-card)',
+                            border: '1px solid var(--border)',
+                            borderRadius: 10,
+                            padding: 10,
+                            display: 'grid',
+                            gridTemplateColumns: 'repeat(7, 1fr)',
+                            gap: 5,
+                            boxShadow: '0 4px 12px rgba(0,0,0,0.2)',
+                            zIndex: 10
+                        }}>
+                            {['😀', '😂', '😍', '👍', '🙏', '🔥', '🎉', '🤔', '💡', '💻', '🌐', '🚀', '✅', '❌', '❤️', '💔'].map(emoji => (
+                                <span key={emoji} onClick={() => handleEmojiSelect(emoji)} style={{ cursor: 'pointer', fontSize: 20 }}>
+                                    {emoji}
+                                </span>
+                            ))}
+                        </div>
+                    )}
+                </div>
+            );
+        };
+
+        const Pesan = ({ userName, onNavigate, t, newChatTarget, onClearChatTarget, friends = [], registeredUsers = [], onTagClick }) => {
+            const safeRegisteredUsers = Array.isArray(registeredUsers) ? registeredUsers : [];
+            const safeFriends = Array.isArray(friends) ? friends : [];
+
             const [filter, setFilter] = useState('inbox');
+            const [searchTerm, setSearchTerm] = useState('');
+            const [activeChat, setActiveChat] = useState(null); // Track active chat for detail view
+
+            // Resolve full friend objects
+            const myContacts = useMemo(() => {
+                const real = safeRegisteredUsers.map(u => ({ ...u, image: `https://ui-avatars.com/api/?name=${encodeURIComponent(u.name)}&background=random` }));
+                let pool = [...real];
+                // Add demo members if not present
+                DEMO_MEMBERS.forEach(dm => {
+                    if (!pool.find(p => p.name === dm.name)) {
+                        pool.push({ ...dm });
+                    }
+                });
+                return pool.filter(u => safeFriends.includes(u.id));
+            }, [safeRegisteredUsers, safeFriends]);
+
             // Use state for chats to allow deletion
             const [chats, setChats] = useState([
                 { id: 1, name: 'Natasya Rina', msg: 'Bisa kita diskusi lebih lanjut?', time: '2m', unread: true, image: 'https://i.pravatar.cc/150?u=12' },
@@ -2703,9 +2725,100 @@
                 { id: 3, name: 'Ahmad Rizky', msg: 'Update hardware sudah selesai.', time: '3h', unread: false, image: 'https://i.pravatar.cc/150?u=3' }
             ]);
 
+            const filteredChats = chats.filter(c =>
+                c.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                c.msg.toLowerCase().includes(searchTerm.toLowerCase())
+            );
+
+            const filteredContacts = myContacts.filter(c =>
+                c.name.toLowerCase().includes(searchTerm.toLowerCase())
+            );
+
+            const startChatWithContact = (contact) => {
+                const exists = chats.find(c => c.name === contact.name);
+                if (!exists) {
+                    const newChat = {
+                        id: Date.now(),
+                        name: contact.name,
+                        msg: 'Halo, salam kenal!',
+                        time: 'Baru saja',
+                        unread: false,
+                        image: contact.image,
+                        messages: [
+                            { id: 1, text: 'Halo, salam kenal!', time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }), isMe: true }
+                        ]
+                    };
+                    setChats(prev => [newChat, ...prev]);
+                    setActiveChat(newChat);
+                } else {
+                    setActiveChat(exists);
+                }
+                setFilter('inbox');
+                setSearchTerm('');
+            };
+
+            const changeFilter = (newFilter) => {
+                setFilter(newFilter);
+                setSearchTerm('');
+            };
+
+            useEffect(() => {
+                if (newChatTarget) {
+                    const exists = chats.find(c => c.name === newChatTarget.name);
+                    if (!exists) {
+                        const newChat = {
+                            id: Date.now(),
+                            name: newChatTarget.name,
+                            msg: 'Halo, saya ingin berdiskusi.',
+                            time: 'Baru saja',
+                            unread: false,
+                            image: newChatTarget.image || `https://ui-avatars.com/api/?name=${encodeURIComponent(newChatTarget.name)}&background=random`,
+                            messages: [
+                                { id: 1, text: 'Halo, saya ingin berdiskusi.', time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }), isMe: true }
+                            ]
+                        };
+                        setChats(prev => [newChat, ...prev]);
+                        setActiveChat(newChat);
+                    } else {
+                        const baseChat = {
+                            ...exists,
+                            messages: exists.messages || [{ id: Date.now(), text: exists.msg, time: exists.time, isMe: false }]
+                        };
+                        setActiveChat(baseChat);
+                    }
+                    if (onClearChatTarget) onClearChatTarget();
+                }
+            }, [newChatTarget]);
+
+            const handleSendMessage = (text) => {
+                if (!activeChat || !text.trim()) return;
+
+                const newMessage = {
+                    id: Date.now(),
+                    text: text,
+                    time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+                    isMe: true
+                };
+
+                const updatedMessages = [...(activeChat.messages || []), newMessage];
+
+                // Update active chat messages
+                const updatedChat = {
+                    ...activeChat,
+                    msg: text, // Update preview
+                    time: 'Baru saja',
+                    messages: updatedMessages
+                };
+
+                setActiveChat(updatedChat);
+                setChats(prev => prev.map(c => c.id === activeChat.id ? updatedChat : c));
+            };
+
             const handleDelete = (id) => {
                 if (confirm('Apakah Anda yakin ingin menghapus pesan ini?')) {
-                    setChats(chats.filter(c => c.id !== id));
+                    const updated = chats.filter(c => c.id !== id);
+                    setChats(updated);
+                    if (activeChat && activeChat.id === id) setActiveChat(null);
                 }
             };
 
@@ -2718,12 +2831,12 @@
                                 <p>{t.msg_subtitle}</p>
                             </div>
                             <div className="sidebar-menu">
-                                <button className={filter === 'inbox' ? 'active' : ''} onClick={() => setFilter('inbox')}><Icon name="message-circle" size={18} /> {t.msg_inbox}</button>
-                                <button className={filter === 'archived' ? 'active' : ''} onClick={() => setFilter('archived')}><Icon name="archive" size={18} /> {t.msg_archived}</button>
-                                <button className={filter === 'contacts' ? 'active' : ''} onClick={() => setFilter('contacts')}><Icon name="users" size={18} /> {t.msg_contacts}</button>
+                                <button className={filter === 'inbox' ? 'active' : ''} onClick={() => changeFilter('inbox')}><Icon name="message-circle" size={18} /> {t.msg_inbox}</button>
+                                <button className={filter === 'archived' ? 'active' : ''} onClick={() => changeFilter('archived')}><Icon name="archive" size={18} /> {t.msg_archived}</button>
+                                <button className={filter === 'contacts' ? 'active' : ''} onClick={() => changeFilter('contacts')}><Icon name="users" size={18} /> {t.msg_contacts}</button>
                             </div>
                         </div>
-                        <div className="app-content">
+                        <div className="app-content" style={{ display: 'flex', flexDirection: 'column', height: '100%', overflow: activeChat ? 'hidden' : 'auto', paddingBottom: activeChat ? 90 : 140 }}>
                             <header className="mobile-header" style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
                                 <div onClick={() => onNavigate && onNavigate('home')} style={{ cursor: 'pointer', padding: 8, background: 'rgba(99, 102, 241, 0.15)', borderRadius: 10, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                                     <Icon name="chevron-left" size={20} color="var(--primary)" />
@@ -2731,57 +2844,135 @@
                                 <h1>{t.msg_title}</h1>
                             </header>
 
-                            <div className="search-bar" style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid var(--border)', marginBottom: 16 }}>
-                                <Icon name="search" color="var(--text-gray)" />
-                                <input type="text" placeholder={t.msg_search_placeholder} style={{ color: 'white' }} />
-                            </div>
-
-                            <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 12 }}>
-                                <button onClick={() => { if (confirm(t.confirm_delete_all_msg)) setChats([]); }} style={{ background: 'transparent', border: 'none', color: '#EF4444', fontSize: 11, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 4, fontWeight: 600 }}>
-                                    <Icon name="trash-2" size={14} /> {t.msg_clear_all}
-                                </button>
-                            </div>
-
-                            {filter === 'inbox' && (
-                                <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-                                    {chats.map((c) => (
-                                        <div key={c.id} className="card" style={{ display: 'flex', alignItems: 'center', gap: 16, margin: 0, cursor: 'pointer' }}>
-                                            <div style={{ position: 'relative' }}>
-                                                <img src={c.image} style={{ width: 50, height: 50, borderRadius: '50%', objectFit: 'cover' }} />
-                                                {c.unread && <div style={{ position: 'absolute', top: 0, right: 0, width: 12, height: 12, background: '#EF4444', borderRadius: '50%', border: '2px solid var(--bg-card)' }}></div>}
-                                            </div>
-                                            <div style={{ flex: 1 }}>
-                                                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
-                                                    <div style={{ fontWeight: 700, fontSize: 15 }}>{c.name}</div>
-                                                    <div style={{ fontSize: 11, color: 'var(--text-gray)' }}>{c.time}</div>
-                                                </div>
-                                                <div style={{ fontSize: 13, color: c.unread ? 'white' : 'var(--text-gray)', fontWeight: c.unread ? 600 : 400 }}>{c.msg}</div>
-                                            </div>
-
-                                            {/* Delete Action */}
-                                            <div
-                                                onClick={(e) => { e.stopPropagation(); handleDelete(c.id); }}
-                                                style={{
-                                                    padding: 10,
-                                                    color: '#EF4444',
-                                                    borderRadius: 10,
-                                                    transition: '0.2s',
-                                                    display: 'flex',
-                                                    alignItems: 'center',
-                                                    justifyContent: 'center'
-                                                }}
-                                                onMouseOver={(e) => e.currentTarget.style.background = 'rgba(239, 68, 68, 0.1)'}
-                                                onMouseOut={(e) => e.currentTarget.style.background = 'transparent'}
-                                                title="Hapus Pesan"
-                                            >
-                                                <Icon name="trash-2" size={18} />
-                                            </div>
+                            {/* Detail Chat View */}
+                            {activeChat ? (
+                                <div className="chat-detail animate" style={{ display: 'flex', flexDirection: 'column', height: '100%', animation: 'fadeIn 0.2s', overflow: 'hidden' }}>
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: 12, paddingBottom: 16, borderBottom: '1px solid var(--border)', marginBottom: 16, flexShrink: 0 }}>
+                                        <div onClick={() => setActiveChat(null)} style={{ cursor: 'pointer', padding: 8, background: 'rgba(255,255,255,0.1)', borderRadius: '50%' }}>
+                                            <Icon name="arrow-left" size={20} />
                                         </div>
-                                    ))}
-                                    {chats.length === 0 && <div style={{ textAlign: 'center', padding: 40, color: 'var(--text-gray)' }}>{t.msg_empty}</div>}
+                                        <img src={activeChat.image} style={{ width: 40, height: 40, borderRadius: '50%', objectFit: 'cover' }} />
+                                        <div>
+                                            <div style={{ fontWeight: 700, fontSize: 16 }}>{activeChat.name}</div>
+                                            <div style={{ fontSize: 12, color: '#10B981' }}>Online</div>
+                                        </div>
+                                    </div>
+
+                                    <div className="messages-area" style={{ flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 12, paddingRight: 8, marginBottom: 16 }}>
+                                        {(activeChat.messages || []).length === 0 && (
+                                            <div style={{ textAlign: 'center', color: 'var(--text-gray)', marginTop: 40, fontSize: 12 }}>
+                                                Mulai percakapan dengan {activeChat.name}
+                                            </div>
+                                        )}
+                                        {(activeChat.messages || []).map(m => (
+                                            <div key={m.id} style={{ alignSelf: m.isMe ? 'flex-end' : 'flex-start', maxWidth: '75%', position: 'relative' }}>
+                                                <div style={{
+                                                    background: m.isMe ? 'var(--primary)' : '#334155',
+                                                    color: 'white',
+                                                    padding: '10px 14px',
+                                                    borderRadius: m.isMe ? '16px 16px 4px 16px' : '16px 16px 16px 4px',
+                                                    fontSize: 14,
+                                                    boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
+                                                }}>
+                                                    {renderTextWithMentions(m.text, onTagClick)}
+                                                </div>
+                                                <div style={{ fontSize: 10, color: 'var(--text-gray)', marginTop: 4, textAlign: m.isMe ? 'right' : 'left' }}>{m.time}</div>
+                                            </div>
+                                        ))}
+                                    </div>
+
+                                    {/* Input Area */}
+                                    <div style={{ flexShrink: 0 }}>
+                                        <ChatInput onSend={handleSendMessage} />
+                                    </div>
                                 </div>
+                            ) : (
+                                <>
+                                    <div className="search-bar" style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid var(--border)', marginBottom: 16 }}>
+                                        <Icon name="search" color="var(--text-gray)" />
+                                        <input
+                                            type="text"
+                                            placeholder={t.msg_search_placeholder}
+                                            style={{ color: 'white' }}
+                                            value={searchTerm}
+                                            onChange={(e) => setSearchTerm(e.target.value)}
+                                        />
+                                        {searchTerm && (
+                                            <div onClick={() => setSearchTerm('')} style={{ cursor: 'pointer' }}>
+                                                <Icon name="x" size={14} color="var(--text-gray)" />
+                                            </div>
+                                        )}
+                                    </div>
+
+                                    <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 12 }}>
+                                        <button onClick={() => { if (confirm(t.confirm_delete_all_msg)) setChats([]); }} style={{ background: 'transparent', border: 'none', color: '#EF4444', fontSize: 11, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 4, fontWeight: 600 }}>
+                                            <Icon name="trash-2" size={14} /> {t.msg_clear_all}
+                                        </button>
+                                    </div>
+
+                                    {filter === 'inbox' && (
+                                        <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                                            {filteredChats.map((c) => (
+                                                <div key={c.id} className="card" onClick={() => setActiveChat({ ...c, messages: c.messages || [{ id: 999, text: c.msg, time: c.time, isMe: false }] })} style={{ display: 'flex', alignItems: 'center', gap: 16, margin: 0, cursor: 'pointer' }}>
+                                                    <div style={{ position: 'relative' }}>
+                                                        <img src={c.image} style={{ width: 50, height: 50, borderRadius: '50%', objectFit: 'cover' }} />
+                                                        {c.unread && <div style={{ position: 'absolute', top: 0, right: 0, width: 12, height: 12, background: '#EF4444', borderRadius: '50%', border: '2px solid var(--bg-card)' }}></div>}
+                                                    </div>
+                                                    <div style={{ flex: 1 }}>
+                                                        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
+                                                            <div style={{ fontWeight: 700, fontSize: 15 }}>{c.name}</div>
+                                                            <div style={{ fontSize: 11, color: 'var(--text-gray)' }}>{c.time}</div>
+                                                        </div>
+                                                        <div style={{ fontSize: 13, color: c.unread ? 'white' : 'var(--text-gray)', fontWeight: c.unread ? 600 : 400 }}>{c.msg}</div>
+                                                    </div>
+
+                                                    {/* Delete Action */}
+                                                    <div
+                                                        onClick={(e) => { e.stopPropagation(); handleDelete(c.id); }}
+                                                        style={{
+                                                            padding: 10,
+                                                            color: '#EF4444',
+                                                            borderRadius: 10,
+                                                            transition: '0.2s',
+                                                            display: 'flex',
+                                                            alignItems: 'center',
+                                                            justifyContent: 'center'
+                                                        }}
+                                                        onMouseOver={(e) => e.currentTarget.style.background = 'rgba(239, 68, 68, 0.1)'}
+                                                        onMouseOut={(e) => e.currentTarget.style.background = 'transparent'}
+                                                        title="Hapus Pesan"
+                                                    >
+                                                        <Icon name="trash-2" size={18} />
+                                                    </div>
+                                                </div>
+                                            ))}
+                                            {filteredChats.length === 0 && <div style={{ textAlign: 'center', padding: 40, color: 'var(--text-gray)' }}>{searchTerm ? 'Pesan tidak ditemukan' : t.msg_empty}</div>}
+                                        </div>
+                                    )}
+
+                                    {filter === 'contacts' && (
+                                        <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                                            {filteredContacts.map((c) => (
+                                                <div key={c.id} className="card" onClick={() => startChatWithContact(c)} style={{ display: 'flex', alignItems: 'center', gap: 16, margin: 0, cursor: 'pointer' }}>
+                                                    <div style={{ position: 'relative' }}>
+                                                        <img src={c.image} style={{ width: 50, height: 50, borderRadius: '50%', objectFit: 'cover' }} />
+                                                    </div>
+                                                    <div style={{ flex: 1 }}>
+                                                        <div style={{ fontWeight: 700, fontSize: 15 }}>{c.name}</div>
+                                                        <div style={{ fontSize: 12, color: 'var(--text-gray)' }}>{c.role || 'User'}</div>
+                                                    </div>
+                                                    <div style={{ padding: 8, background: 'var(--primary)', borderRadius: 8, color: 'white' }}>
+                                                        <Icon name="message-circle" size={18} />
+                                                    </div>
+                                                </div>
+                                            ))}
+                                            {filteredContacts.length === 0 && <div style={{ textAlign: 'center', padding: 40, color: 'var(--text-gray)' }}>{friends.length === 0 ? 'Belum ada kontak teman.' : 'Kontak tidak ditemukan.'}</div>}
+                                        </div>
+                                    )}
+
+                                    {filter === 'archived' && <div style={{ padding: 40, textAlign: 'center', color: 'var(--text-gray)' }}>Folder ini kosong</div>}
+                                </>
                             )}
-                            {filter !== 'inbox' && <div style={{ padding: 40, textAlign: 'center', color: 'var(--text-gray)' }}>{t.msg_folder_empty}</div>}
                         </div>
                     </div>
                 </Background3D>
@@ -2792,13 +2983,13 @@
             const [filter, setFilter] = useState('all');
 
             const handleDelete = (id) => {
-                if (confirm(t.confirm_delete_notif || 'Hapus notifikasi ini?')) {
+                if (confirm('Hapus notifikasi ini?')) {
                     setNotifications(notifications.filter(n => n.id !== id));
                 }
             };
 
             const clearAll = () => {
-                if (confirm(t.confirm_delete_all_notif || 'Hapus semua notifikasi?')) {
+                if (confirm('Hapus semua notifikasi?')) {
                     setNotifications([]);
                 }
             };
@@ -2892,8 +3083,8 @@
                                     <div style={{ width: 80, height: 80, background: 'linear-gradient(135deg, var(--primary), var(--secondary))', borderRadius: 20, margin: '0 auto 20px', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 10px 30px rgba(99, 102, 241, 0.3)' }}>
                                         <Icon name="info" size={40} color="white" />
                                     </div>
-                                    <h2 style={{ fontSize: 20, fontWeight: 800, marginBottom: 8 }}>{t.help_title}</h2>
-                                    <p style={{ fontSize: 13, color: 'var(--text-gray)', lineHeight: 1.6 }}>{t.help_desc_general || 'Platform kolaborasi IT Support & Troubleshooting antar karyawan.'}</p>
+                                    <h2 style={{ fontSize: 20, fontWeight: 800, marginBottom: 8 }}>Belajar Bersama v2.0</h2>
+                                    <p style={{ fontSize: 13, color: 'var(--text-gray)', lineHeight: 1.6 }}>Platform kolaborasi IT Support & Troubleshooting antar karyawan.</p>
 
                                     <div className="card" style={{ marginTop: 24, background: 'rgba(255,255,255,0.03)', textAlign: 'left' }}>
                                         <h4 style={{ fontSize: 14, fontWeight: 700, marginBottom: 16 }}>Keamanan & Privasi</h4>
@@ -2901,22 +3092,22 @@
                                             <p style={{ lineHeight: 1.5 }}>Data Anda terlindungi dengan enkripsi standar industri.</p>
                                             <div style={{ height: 1, background: 'rgba(255,255,255,0.05)', margin: '4px 0' }} />
                                             <div style={{ display: 'flex', justifyContent: 'space-between' }}><span>{t.help_ver}</span><span style={{ color: 'white' }}>2.0.1</span></div>
-                                            <div style={{ display: 'flex', justifyContent: 'space-between' }}><span>{t.help_dev}</span><span style={{ color: 'white' }}>MR Tech</span></div>
+                                            <div style={{ display: 'flex', justifyContent: 'space-between' }}><span>{t.help_dev}</span><span style={{ color: 'white' }}>Muhammad Ramadhan</span></div>
                                         </div>
                                     </div>
                                 </div>
                             )}
                             {tab === 'faq' && (
                                 <div>
-                                    <div className="card"><h4 style={{ marginBottom: 8 }}>{t.help_faq_q1 || 'Bagaimana cara menambahkan materi?'}</h4><p style={{ fontSize: 13, color: 'var(--text-gray)' }}>{t.help_faq_a1 || 'Anda dapat menambahkan materi melalui menu Bidang Detail di tab Materi.'}</p></div>
-                                    <div className="card"><h4 style={{ marginBottom: 8 }}>{t.help_faq_q2 || 'Apakah chat bersifat pribadi?'}</h4><p style={{ fontSize: 13, color: 'var(--text-gray)' }}>{t.help_faq_a2 || 'Ya, chat antar pengguna dienkripsi.'}</p></div>
+                                    <div className="card"><h4 style={{ marginBottom: 8 }}>Bagaimana cara reset password?</h4><p style={{ fontSize: 13, color: 'var(--text-gray)' }}>Hubungi admin IT melalui menu Kontak atau gunakan fitur Lupa Password di halaman login.</p></div>
+                                    <div className="card"><h4 style={{ marginBottom: 8 }}>Apakah chat bersifat pribadi?</h4><p style={{ fontSize: 13, color: 'var(--text-gray)' }}>Ya, chat antar pengguna dienkripsi. Namun diskusi publik dapat dilihat oleh semua anggota.</p></div>
                                 </div>
                             )}
                             {tab === 'contact' && (
                                 <div className="card" style={{ textAlign: 'center', padding: '40px 20px' }}>
                                     <Icon name="mail" size={48} color="var(--primary)" />
-                                    <h3>{t.help_contact_desc}</h3>
-                                    <button style={{ marginTop: 16, padding: '12px 24px', background: 'var(--primary)', color: 'white', border: 'none', borderRadius: 8 }}>{t.help_btn_cs}</button>
+                                    <h3>{t.help_need_more}</h3>
+                                    <button style={{ marginTop: 16, padding: '12px 24px', background: 'var(--primary)', color: 'white', border: 'none', borderRadius: 8 }}>{t.help_btn_email}</button>
                                 </div>
                             )}
                         </div>
@@ -2994,11 +3185,11 @@
                             padding: 20
                         }} onClick={() => setSelectedId(null)}>
                             <div className="animate" style={{
-                                maxWidth: 650, width: '100%', background: 'var(--bg-card)',
+                                maxWidth: 'min(95vw, 850px)', width: 'calc(100% - 32px)', background: 'var(--bg-card)',
                                 borderRadius: 32, border: '1px solid var(--primary)',
-                                maxHeight: '90vh', overflowY: 'auto', padding: 0,
+                                maxHeight: '92vh', overflowY: 'auto', overflowX: 'hidden',
                                 position: 'relative', boxShadow: '0 0 80px rgba(99, 102, 241, 0.4)',
-                                overflow: 'hidden'
+                                margin: 'auto', WebkitOverflowScrolling: 'touch'
                             }} onClick={e => e.stopPropagation()}>
                                 {isAnalyzingLocal && (
                                     <div style={{
@@ -3012,20 +3203,20 @@
                                         <div style={{ color: 'var(--text-gray)', fontSize: 12 }}>{t.kf_ai_connecting}</div>
                                     </div>
                                 )}
-                                <div style={{ background: 'linear-gradient(135deg, var(--primary), var(--secondary))', padding: '24px 30px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                <div style={{ background: 'linear-gradient(135deg, var(--primary), var(--secondary))', padding: 'clamp(16px, 4vw, 24px) clamp(20px, 5vw, 30px)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                                     <div style={{ display: 'flex', alignItems: 'center', gap: 15 }}>
-                                        <div style={{ width: 44, height: 44, background: 'rgba(255,255,255,0.2)', borderRadius: 12, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                                        <div style={{ width: 'clamp(36px, 10vw, 44px)', height: 'clamp(36px, 10vw, 44px)', background: 'rgba(255,255,255,0.2)', borderRadius: 12, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                                             <Icon name="brain-circuit" size={24} color="white" />
                                         </div>
                                         <div>
-                                            <div style={{ fontSize: 18, fontWeight: 900, color: 'white' }}>{t.kf_report_title}</div>
-                                            <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.7)', fontWeight: 600 }}>{t.kf_report_sync}</div>
+                                            <div style={{ fontSize: 'clamp(15px, 4vw, 18px)', fontWeight: 900, color: 'white' }}>{t.kf_report_title}</div>
+                                            <div style={{ fontSize: 10, color: 'rgba(255,255,255,0.7)', fontWeight: 600 }}>{t.kf_report_sync}</div>
                                         </div>
                                     </div>
                                     <div onClick={() => setSelectedId(null)} style={{ cursor: 'pointer', background: 'rgba(0,0,0,0.2)', padding: 10, borderRadius: '50%', color: 'white' }}><Icon name="x" size={20} /></div>
                                 </div>
 
-                                <div style={{ padding: 30 }}>
+                                <div style={{ padding: 'clamp(16px, 5vw, 30px)' }}>
                                     {/* Question Section */}
                                     <div style={{ marginBottom: 24 }}>
                                         <div style={{ fontSize: 11, fontWeight: 800, color: 'var(--primary)', marginBottom: 10, textTransform: 'uppercase', letterSpacing: 1.5 }}>{t.kf_problem_summary}</div>
@@ -3035,8 +3226,13 @@
                                     </div>
 
                                     {/* AI Crawling Section */}
-                                    <div style={{ marginBottom: 24, display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) minmax(0, 1fr)', gap: 16 }}>
-                                        <div className="card" style={{ background: 'rgba(16, 185, 129, 0.05)', padding: 16, borderRadius: 20, border: '1px solid rgba(16, 185, 129, 0.1)', margin: 0 }}>
+                                    <div style={{
+                                        marginBottom: 24,
+                                        display: 'grid',
+                                        gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 250px), 1fr))',
+                                        gap: 16
+                                    }}>
+                                        <div className="card" style={{ background: 'rgba(16, 185, 129, 0.05)', padding: 'clamp(12px, 3vw, 16px)', borderRadius: 20, border: '1px solid rgba(16, 185, 129, 0.1)', margin: 0 }}>
                                             <div style={{ display: 'flex', alignItems: 'center', gap: 8, color: '#10B981', marginBottom: 10 }}>
                                                 <Icon name="activity" size={16} />
                                                 <div style={{ fontSize: 11, fontWeight: 800 }}>{t.kf_ai_engine}</div>
@@ -3048,7 +3244,7 @@
                                                 {t.kf_btn_resource}
                                             </button>
                                         </div>
-                                        <div className="card" style={{ background: 'rgba(66, 133, 244, 0.05)', padding: 16, borderRadius: 20, border: '1px solid rgba(66, 133, 244, 0.1)', margin: 0 }}>
+                                        <div className="card" style={{ background: 'rgba(66, 133, 244, 0.05)', padding: 'clamp(12px, 3vw, 16px)', borderRadius: 20, border: '1px solid rgba(66, 133, 244, 0.1)', margin: 0 }}>
                                             <div style={{ display: 'flex', alignItems: 'center', gap: 8, color: '#4285F4', marginBottom: 10 }}>
                                                 <Icon name="search" size={16} />
                                                 <div style={{ fontSize: 11, fontWeight: 800 }}>{t.kf_google_insight}</div>
@@ -3063,7 +3259,7 @@
                                     </div>
 
                                     {/* Detailed Analysis Section */}
-                                    <div style={{ background: 'rgba(255,255,255,0.03)', padding: 24, borderRadius: 24, border: '1px solid var(--border)' }}>
+                                    <div style={{ background: 'rgba(255,255,255,0.03)', padding: 'clamp(16px, 4vw, 24px)', borderRadius: 24, border: '1px solid var(--border)' }}>
                                         <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 16 }}>
                                             <Icon name="clipboard-check" color="var(--primary)" size={18} />
                                             <div style={{ fontSize: 13, fontWeight: 800, color: 'white' }}>{t.kf_solution_title}</div>
@@ -3126,7 +3322,7 @@
                 if (!file) return;
 
                 if (file.size > 2 * 1024 * 1024) {
-                    alert(t.profile_err_size || 'Ukuran file terlalu besar! Maksimal 2MB.');
+                    alert('Ukuran file terlalu besar! Maksimal 2MB.');
                     return;
                 }
 
@@ -3166,16 +3362,16 @@
 
             // Helper: Format Relative Time
             const formatRelativeTime = (val) => {
-                if (!val) return t.just_now;
+                if (!val) return 'Baru saja';
                 // If string, assume it's already formatted
-                if (typeof val === 'string' && (val.includes('lalu') || val.includes('ago'))) return val;
+                if (typeof val === 'string' && val.includes('lalu')) return val;
                 if (typeof val === 'string') return val; // fallback
 
                 const diff = (Date.now() - val) / 1000;
-                if (diff < 60) return t.just_now;
-                if (diff < 3600) return t.mins_ago.replace('{n}', Math.floor(diff / 60));
-                if (diff < 86400) return t.hours_ago.replace('{n}', Math.floor(diff / 3600));
-                return `${Math.floor(diff / 86400)} ${t.profile_stat_points === 'Poin' ? 'hari lalu' : 'days ago'}`;
+                if (diff < 60) return 'Baru saja';
+                if (diff < 3600) return `${Math.floor(diff / 60)} menit lalu`;
+                if (diff < 86400) return `${Math.floor(diff / 3600)} jam lalu`;
+                return `${Math.floor(diff / 86400)} hari lalu`;
             };
 
             // Password Management
@@ -3188,10 +3384,10 @@
             }, [skills, userName]);
 
             const handleAddSkill = () => {
-                const newSkill = prompt(t.profile_skill_prompt || "Tambah Keahlian Baru (mis: ReactJS, Python):");
+                const newSkill = prompt("Tambah Keahlian Baru (mis: ReactJS, Python):");
                 if (newSkill && newSkill.trim()) {
                     if (skills.includes(newSkill.trim())) {
-                        alert(t.profile_skill_exist || 'Keahlian sudah ada!');
+                        alert('Keahlian sudah ada!');
                         return;
                     }
                     setSkills([...skills, newSkill.trim()]);
@@ -3199,18 +3395,18 @@
             };
 
             const handleRemoveSkill = (skillToRemove) => {
-                if (confirm(t.profile_skill_delete_confirm.replace('{skill}', skillToRemove) || `Hapus keahlian "${skillToRemove}"?`)) {
+                if (confirm(`Hapus keahlian "${skillToRemove}"?`)) {
                     setSkills(skills.filter(s => s !== skillToRemove));
                 }
             };
 
             const handleSavePassword = () => {
                 if (!passState.old || !passState.new) {
-                    alert(t.profile_pass_err || 'Mohon isi password lama dan baru.');
+                    alert('Mohon isi password lama dan baru.');
                     return;
                 }
                 // Simulation
-                alert(t.profile_pass_success || 'Password berhasil diperbarui! Silakan login ulang nanti.');
+                alert('Password berhasil diperbarui! Silakan login ulang nanti.');
                 setPassState({ old: '', new: '' });
             };
 
@@ -3284,7 +3480,7 @@
                                                         <input
                                                             value={editForm.photo}
                                                             onChange={e => setEditForm({ ...editForm, photo: e.target.value })}
-                                                            placeholder={t.profile_photo_url_placeholder || "URL Foto Profil"}
+                                                            placeholder="URL Foto Profil"
                                                             style={{ background: 'rgba(0,0,0,0.3)', border: '1px solid var(--border)', padding: 8, borderRadius: 6, color: 'white', fontSize: 11, width: '100%' }}
                                                         />
                                                         <input
@@ -3297,17 +3493,17 @@
                                                         <button
                                                             onClick={() => fileInputRef.current.click()}
                                                             style={{ background: 'rgba(255,255,255,0.1)', border: '1px dashed var(--border)', padding: 8, borderRadius: 6, color: 'var(--text-gray)', fontSize: 11, cursor: 'pointer', width: '100%' }}>
-                                                            {uploading ? t.loading : t.profile_upload_label}
+                                                            {uploading ? t.loading : t.profile_upload_label || 'Upload Foto'}
                                                         </button>
                                                         <button onClick={saveProfileChanges} style={{ marginTop: 4, background: '#10B981', color: 'white', border: 'none', padding: 8, borderRadius: 6, cursor: 'pointer', fontWeight: 'bold' }}>{t.profile_label_save}</button>
                                                     </div>
                                                 ) : (
                                                     <>
-                                                        <h2 style={{ fontSize: 24, marginBottom: 4 }}>{userName || t.common_employee}</h2>
+                                                        <h2 style={{ fontSize: 24, marginBottom: 4 }}>{userName || 'Karyawan'}</h2>
                                                         <div style={{ color: 'var(--text-gray)', fontSize: 13, marginBottom: 12 }}>{bio || 'Senior System Admin • IT Support'}</div>
                                                         <div style={{ display: 'flex', gap: 8 }}>
                                                             <span className="tag" style={{ background: 'rgba(99, 102, 241, 0.2)', color: '#818cf8', border: 'none' }}>{userRole}</span>
-                                                            <span className="tag" style={{ background: 'rgba(16, 185, 129, 0.2)', color: '#34d399', border: 'none' }}>{t.profile_verified}</span>
+                                                            <span className="tag" style={{ background: 'rgba(16, 185, 129, 0.2)', color: '#34d399', border: 'none' }}>Verified</span>
                                                         </div>
                                                     </>
                                                 )}
@@ -3316,15 +3512,15 @@
                                     </div>
 
                                     <div className="card" style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', textAlign: 'center', padding: '24px 0', marginTop: 24 }}>
-                                        <div className="hover-scale" style={{ cursor: 'pointer' }} onClick={() => alert(t.profile_stat_discuss_detail)}>
+                                        <div className="hover-scale" style={{ cursor: 'pointer' }} onClick={() => alert(t.profile_stat_discuss_detail || 'Detail diskusi')}>
                                             <div style={{ fontSize: 20, fontWeight: 800 }}>{stats.diskusi}</div>
                                             <div style={{ fontSize: 11, color: 'var(--text-gray)', textTransform: 'uppercase', marginTop: 4 }}>{t.profile_stat_discuss}</div>
                                         </div>
-                                        <div className="hover-scale" style={{ borderLeft: '1px solid var(--border)', borderRight: '1px solid var(--border)', cursor: 'pointer' }} onClick={() => alert(t.profile_stat_solution_detail)}>
+                                        <div className="hover-scale" style={{ borderLeft: '1px solid var(--border)', borderRight: '1px solid var(--border)', cursor: 'pointer' }} onClick={() => alert(t.profile_stat_solution_detail || 'Detail solusi')}>
                                             <div style={{ fontSize: 20, fontWeight: 800 }}>{stats.solusi}</div>
                                             <div style={{ fontSize: 11, color: 'var(--text-gray)', textTransform: 'uppercase', marginTop: 4 }}>{t.profile_stat_solution}</div>
                                         </div>
-                                        <div className="hover-scale" style={{ cursor: 'pointer' }} onClick={() => alert(t.profile_stat_points_detail)}>
+                                        <div className="hover-scale" style={{ cursor: 'pointer' }} onClick={() => alert(t.profile_stat_points_detail || 'Detail poin')}>
                                             <div style={{ fontSize: 20, fontWeight: 800 }}>{stats.poin}</div>
                                             <div style={{ fontSize: 11, color: 'var(--text-gray)', textTransform: 'uppercase', marginTop: 4 }}>{t.profile_stat_points}</div>
                                         </div>
@@ -3346,7 +3542,7 @@
                                                     </span>
                                                 </div>
                                             ))}
-                                            {skills.length === 0 && <span style={{ color: 'var(--text-gray)', fontSize: 13 }}>{t.profile_no_skills}</span>}
+                                            {skills.length === 0 && <span style={{ color: 'var(--text-gray)', fontSize: 13 }}>Belum ada keahlian ditambahkan.</span>}
                                         </div>
                                     </div>
                                 </div>
@@ -3453,21 +3649,21 @@
 
                                     <div className="card">
                                         <h4>{t.profile_config_app}</h4>
-                                        <div style={{ marginTop: 10, fontSize: 13, color: 'var(--text-gray)' }}>{t.profile_version.replace('{ver}', '2.0.1').replace('{build}', '2026.01')}</div>
+                                        <div style={{ marginTop: 10, fontSize: 13, color: 'var(--text-gray)' }}>Versi 2.0.1 (Build 2026.01)</div>
                                     </div>
 
                                     {/* ADMIN PANEL SECTION */}
                                     {userRole === 'Admin' && (
                                         <div className="card" style={{ marginTop: 16, border: '1px solid var(--primary)', background: 'rgba(99, 102, 241, 0.1)' }}>
                                             <h4 style={{ color: 'var(--primary)', marginBottom: 12, display: 'flex', alignItems: 'center', gap: 8 }}>
-                                                <Icon name="shield" size={16} /> {t.profile_admin_panel}
+                                                <Icon name="shield" size={16} /> Admin Panel
                                             </h4>
                                             <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
                                                 <button onClick={onOpenUserMan} style={{ padding: '10px', background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: 8, color: 'white', cursor: 'pointer', textAlign: 'left', display: 'flex', alignItems: 'center', gap: 10 }}>
-                                                    <Icon name="users" size={16} /> {t.profile_admin_users}
+                                                    <Icon name="users" size={16} /> Kelola Pengguna & Admin
                                                 </button>
                                                 <button onClick={onOpenDB} style={{ padding: '10px', background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: 8, color: 'white', cursor: 'pointer', textAlign: 'left', display: 'flex', alignItems: 'center', gap: 10 }}>
-                                                    <Icon name="database" size={16} /> {t.profile_admin_db}
+                                                    <Icon name="database" size={16} /> Database Manager (Redis)
                                                 </button>
                                             </div>
                                         </div>
@@ -3497,7 +3693,7 @@
         };
 
         // --- Bidang Detail Screen (The "New Bar" View) ---
-        const BidangDetail = ({ bidang, onBack, currentUserName, onAddKnowledge, categoryData, onUpdateCategoryData, addNotification, registeredMembers = [], t }) => {
+        const BidangDetail = ({ bidang, onBack, currentUserName, onAddKnowledge, categoryData, onUpdateCategoryData, addNotification, registeredMembers = [], t, onTagClick }) => {
             const [activeTab, setActiveTab] = useState('diskusi');
             const [msg, setMsg] = useState('');
             const [showMemberSelector, setShowMemberSelector] = useState(false);
@@ -3534,7 +3730,7 @@
 
                 const processSend = (fileAttachment = null) => {
                     const newMsg = {
-                        user: currentUserName || t.common_you,
+                        user: currentUserName || 'Anda',
                         text: msg,
                         time: new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }),
                         self: true,
@@ -3601,7 +3797,28 @@
 
             const selectMember = (member) => {
                 if (selectedDiscussionIdx === null) {
-                    alert(`${t.fd_alert_colleague_added}`);
+                    // Global Bidang Member Invite
+                    const currentMembers = categoryData.members || [];
+                    if (currentMembers.some(m => m.name === member.name)) {
+                        alert(`${member.name} sudah menjadi anggota di bidang ini.`);
+                    } else {
+                        const updatedMembers = [...currentMembers, { ...member, role: member.role || 'Member', joinedAt: new Date().toISOString() }];
+                        onUpdateCategoryData(bidang.name, {
+                            ...categoryData,
+                            members: updatedMembers
+                        });
+                        alert(`${member.name} berhasil diundang ke ${bidang.name}.`);
+
+                        if (addNotification) {
+                            addNotification({
+                                title: 'Undangan Berhasil',
+                                desc: `Anda berhasil mengundang ${member.name}.`,
+                                type: 'info',
+                                target: 'bidang',
+                                targetId: bidang.name
+                            });
+                        }
+                    }
                     setShowMemberSelector(false);
                     return;
                 }
@@ -3630,6 +3847,14 @@
                 setShowMemberSelector(false);
                 setSelectedDiscussionIdx(null);
             };
+
+            const handleJoinField = () => {
+                const updatedMembers = [...(categoryData.members || []), { name: currentUserName, role: 'Member', joinedAt: new Date().toISOString() }];
+                onUpdateCategoryData(bidang.name, { ...categoryData, members: updatedMembers });
+                alert(`Berhasil bergabung di ${bidang.name}!`);
+            };
+
+            const isMember = (categoryData.members || []).some(m => m.name === currentUserName);
 
             return (
                 <Background3D color1={bidang.color || 'var(--primary)'} color2="var(--secondary)">
@@ -3689,11 +3914,20 @@
                                     </div>
                                     <h2 style={{ fontSize: 16, fontWeight: 800 }}>{bidang.name}</h2>
                                 </div>
-                                <button onClick={() => { setSelectedDiscussionIdx(null); setShowMemberSelector(true); }} style={{
-                                    padding: '6px 12px', background: 'rgba(0,0,0,0.2)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 10, color: 'white', fontSize: 11, fontWeight: 700, display: 'flex', alignItems: 'center', gap: 4, cursor: 'pointer'
-                                }}>
-                                    <Icon name="user-plus" size={14} /> {t.invite_label}
-                                </button>
+                                <div style={{ display: 'flex', gap: 8 }}>
+                                    {!isMember && (
+                                        <button onClick={handleJoinField} style={{
+                                            padding: '6px 12px', background: 'rgba(255,255,255,0.2)', border: '1px solid rgba(255,255,255,0.3)', borderRadius: 10, color: 'white', fontSize: 11, fontWeight: 700, display: 'flex', alignItems: 'center', gap: 4, cursor: 'pointer'
+                                        }}>
+                                            <Icon name="log-in" size={14} /> {t.join_title || 'Ikut Serta'}
+                                        </button>
+                                    )}
+                                    <button onClick={() => { setSelectedDiscussionIdx(null); setShowMemberSelector(true); }} style={{
+                                        padding: '6px 12px', background: 'rgba(0,0,0,0.2)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 10, color: 'white', fontSize: 11, fontWeight: 700, display: 'flex', alignItems: 'center', gap: 4, cursor: 'pointer'
+                                    }}>
+                                        <Icon name="user-plus" size={14} /> {t.invite_label}
+                                    </button>
+                                </div>
                             </div>
 
                             <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 12 }}>
@@ -3702,7 +3936,7 @@
                                 </div>
                                 <div>
                                     <div style={{ fontSize: 13, fontWeight: 800 }}>{bidang.name} {t.fd_expert_hub}</div>
-                                    <div style={{ fontSize: 10, opacity: 0.9 }}>{discussions.length} {t.fd_tab_diskusi} • {categoryData.materials?.length || 0} {t.fd_tab_materi}</div>
+                                    <div style={{ fontSize: 10, opacity: 0.9 }}>{discussions.length} {t.fd_tab_diskusi} • {categoryData.materials?.length || 0} {t.fd_tab_materi} • {(categoryData.members || []).length} {t.tab_anggota || 'Anggota'}</div>
                                 </div>
                             </div>
 
@@ -3841,7 +4075,7 @@
                                                     <div style={{ marginTop: 12, paddingLeft: 12, borderLeft: '2px solid rgba(255,255,255,0.1)' }}>
                                                         {(post.comments || []).map(c => (
                                                             <div key={c.id} style={{ marginBottom: 8, fontSize: 13 }}>
-                                                                <span style={{ fontWeight: 700 }}>{c.user}: </span> {c.text}
+                                                                <span style={{ fontWeight: 700 }}>{c.user}: </span> {renderTextWithMentions(c.text, onTagClick)}
                                                             </div>
                                                         ))}
                                                         <input
@@ -3878,7 +4112,7 @@
                                                 <div style={{ width: 32, height: 32, borderRadius: '50%', background: m.self ? 'var(--primary)' : 'rgba(255,255,255,0.1)', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, fontWeight: 700 }}>{m.user[0]}</div>
                                                 <div style={{ maxWidth: '80%', background: m.self ? 'rgba(99, 102, 241, 0.1)' : 'rgba(255,255,255,0.03)', padding: 12, borderRadius: m.self ? '12px 0 12px 12px' : '0 12px 12px 12px', border: '1px solid var(--border)' }}>
                                                     <div style={{ fontSize: 11, fontWeight: 700, color: m.self ? 'var(--primary)' : '#ddd', marginBottom: 4 }}>{m.user}</div>
-                                                    <div style={{ fontSize: 13 }}>{m.text}</div>
+                                                    <div style={{ fontSize: 13 }}>{renderTextWithMentions(m.text, onTagClick)}</div>
                                                     {m.attachment && (
                                                         <div onClick={() => downloadFile(m.attachment.data, m.attachment.name)} style={{ marginTop: 8, padding: 8, background: 'rgba(0,0,0,0.2)', borderRadius: 8, display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', border: '1px solid rgba(255,255,255,0.1)' }}>
                                                             <Icon name="file-text" size={14} />
@@ -3922,10 +4156,10 @@
             const [isAnalyzing, setIsAnalyzing] = useState(false);
 
             const searchSources = [
-                { id: 'internal', name: 'Internal', icon: 'search', color: 'var(--primary)', placeholder: t.home_search_internal },
-                { id: 'google', name: 'Google', icon: 'globe', color: '#4285F4', placeholder: t.home_search_google },
-                { id: 'chatgpt', name: 'ChatGPT', icon: 'zap', color: '#10a37f', placeholder: t.home_search_chatgpt },
-                { id: 'youtube', name: 'YouTube', icon: 'video', color: '#FF0000', placeholder: t.home_search_youtube }
+                { id: 'internal', name: 'Internal', icon: 'search', color: 'var(--primary)', placeholder: 'Cari bidang...' },
+                { id: 'google', name: 'Google', icon: 'globe', color: '#4285F4', placeholder: 'Ketik & cari di Google...' },
+                { id: 'chatgpt', name: 'ChatGPT', icon: 'zap', color: '#10a37f', placeholder: 'Tanya AI (ChatGPT)...' },
+                { id: 'youtube', name: 'YouTube', icon: 'video', color: '#FF0000', placeholder: 'Cari panduan video...' }
             ];
 
             const activeSource = searchSources.find(s => s.id === searchSource);
@@ -3950,11 +4184,11 @@
             });
 
             const questions = [
-                { user: "Ahmad Rizky", title: "Laptop tidak bisa connect ke WiFi kantor setelah update Windows", tags: ["Network", "Hardware"], time: t.mins_ago.replace('{n}', '2') },
-                { user: "Budi Santoso", title: "Error runtime saat menjalankan aplikasi Node.js", tags: ["Runtimes", "Development"], time: t.mins_ago.replace('{n}', '15') },
-                { user: "Dewi Lestari", title: "Cara install driver printer HP di Mac M2?", tags: ["Hardware", "Software"], time: t.hours_ago.replace('{n}', '1') },
-                { user: "Siti Aminah", title: "Database connection lost saat high traffic", tags: ["Database", "Backend"], time: t.hours_ago.replace('{n}', '2') },
-                { user: "Rudi Hermawan", title: "Rekomendasi text editor ringan untuk PC kentang", tags: ["Software", "Tools"], time: t.hours_ago.replace('{n}', '3') }
+                { user: "Ahmad Rizky", title: "Laptop tidak bisa connect ke WiFi kantor setelah update Windows", tags: ["Network", "Hardware"], time: "2m lalu" },
+                { user: "Budi Santoso", title: "Error runtime saat menjalankan aplikasi Node.js", tags: ["Runtimes", "Development"], time: "15m lalu" },
+                { user: "Dewi Lestari", title: "Cara install driver printer HP di Mac M2?", tags: ["Hardware", "Software"], time: "1j lalu" },
+                { user: "Siti Aminah", title: "Database connection lost saat high traffic", tags: ["Database", "Backend"], time: "2j lalu" },
+                { user: "Rudi Hermawan", title: "Rekomendasi text editor ringan untuk PC kentang", tags: ["Software", "Tools"], time: "3j lalu" }
             ];
 
             useEffect(() => {
@@ -4049,7 +4283,7 @@
                                         }}>
                                             {/* User Quick Info */}
                                             <div style={{ padding: '12px 14px', marginBottom: 8, borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
-                                                <div style={{ fontSize: 13, fontWeight: 700, color: 'white' }}>{userName || (t.profile_stat_points === 'Poin' ? 'Karyawan' : 'Employee')}</div>
+                                                <div style={{ fontSize: 13, fontWeight: 700, color: 'white' }}>{userName || 'Karyawan'}</div>
                                                 <div style={{ fontSize: 10, color: 'var(--text-gray)' }}>{t.menu_role}: {userRole} • Status: {t.menu_status_active} 🟢</div>
                                             </div>
 
@@ -4192,7 +4426,7 @@
                                         backdropFilter: 'blur(24px)',
                                         overflow: 'hidden'
                                     }}>
-                                        <div style={{ fontSize: 11, color: 'var(--text-gray)', padding: '6px 14px 10px', textTransform: 'uppercase', letterSpacing: 1.5, fontWeight: 700 }}>{t.home_source_title}</div>
+                                        <div style={{ fontSize: 11, color: 'var(--text-gray)', padding: '6px 14px 10px', textTransform: 'uppercase', letterSpacing: 1.5, fontWeight: 700 }}>Sumber Bantuan</div>
                                         <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
                                             {searchSources.map(s => (
                                                 <div
@@ -4227,7 +4461,7 @@
                                                     </div>
                                                     <div style={{ flex: 1 }}>
                                                         <div style={{ fontSize: 13, fontWeight: 700, color: searchSource === s.id ? 'white' : 'rgba(255,255,255,0.7)' }}>{s.name}</div>
-                                                        <div style={{ fontSize: 10, color: 'var(--text-gray)' }}>{t.home_source_open.replace('{name}', s.name)}</div>
+                                                        <div style={{ fontSize: 10, color: 'var(--text-gray)' }}>Buka {s.name}</div>
                                                     </div>
                                                     {searchSource === s.id && (
                                                         <div style={{ width: 8, height: 8, borderRadius: '50%', background: s.color, boxShadow: `0 0 10px ${s.color}` }}></div>
@@ -4358,11 +4592,11 @@
                                     padding: 20
                                 }} onClick={() => setSelectedKnowledge(null)}>
                                     <div className="animate" style={{
-                                        maxWidth: 650, width: '100%', background: 'var(--bg-card)',
+                                        maxWidth: 'min(95vw, 850px)', width: 'calc(100% - 32px)', background: 'var(--bg-card)',
                                         borderRadius: 32, border: '1px solid var(--primary)',
-                                        maxHeight: '90vh', overflowY: 'auto', padding: 0,
+                                        maxHeight: '92vh', overflowY: 'auto', overflowX: 'hidden',
                                         position: 'relative', boxShadow: '0 0 80px rgba(99, 102, 241, 0.4)',
-                                        overflow: 'hidden'
+                                        margin: 'auto', WebkitOverflowScrolling: 'touch'
                                     }} onClick={e => e.stopPropagation()}>
                                         {isAnalyzing && (
                                             <div style={{
@@ -4377,20 +4611,20 @@
                                             </div>
                                         )}
                                         {/* Header Modal */}
-                                        <div style={{ background: 'linear-gradient(135deg, var(--primary), var(--secondary))', padding: '24px 30px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                        <div style={{ background: 'linear-gradient(135deg, var(--primary), var(--secondary))', padding: 'clamp(16px, 4vw, 24px) clamp(20px, 5vw, 30px)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                                             <div style={{ display: 'flex', alignItems: 'center', gap: 15 }}>
-                                                <div style={{ width: 44, height: 44, background: 'rgba(255,255,255,0.2)', borderRadius: 12, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                                                <div style={{ width: 'clamp(36px, 10vw, 44px)', height: 'clamp(36px, 10vw, 44px)', background: 'rgba(255,255,255,0.2)', borderRadius: 12, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                                                     <Icon name="brain-circuit" size={24} color="white" />
                                                 </div>
                                                 <div>
-                                                    <div style={{ fontSize: 18, fontWeight: 900, color: 'white' }}>{t.kf_report_title}</div>
-                                                    <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.7)', fontWeight: 600 }}>{t.kf_report_sync}</div>
+                                                    <div style={{ fontSize: 'clamp(15px, 4vw, 18px)', fontWeight: 900, color: 'white' }}>{t.kf_report_title}</div>
+                                                    <div style={{ fontSize: 10, color: 'rgba(255,255,255,0.7)', fontWeight: 600 }}>{t.kf_report_sync}</div>
                                                 </div>
                                             </div>
                                             <div onClick={() => setSelectedKnowledge(null)} style={{ cursor: 'pointer', background: 'rgba(0,0,0,0.2)', padding: 10, borderRadius: '50%', color: 'white' }}><Icon name="x" size={20} /></div>
                                         </div>
 
-                                        <div style={{ padding: 30 }}>
+                                        <div style={{ padding: 'clamp(16px, 5vw, 30px)' }}>
                                             {/* Question Section */}
                                             <div style={{ marginBottom: 24 }}>
                                                 <div style={{ fontSize: 11, fontWeight: 800, color: 'var(--primary)', marginBottom: 10, textTransform: 'uppercase', letterSpacing: 1.5, display: 'flex', justifyContent: 'space-between' }}>
@@ -4403,8 +4637,13 @@
                                             </div>
 
                                             {/* AI Crawling Section */}
-                                            <div style={{ marginBottom: 24, display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) minmax(0, 1fr)', gap: 16 }}>
-                                                <div className="card" style={{ background: 'rgba(16, 185, 129, 0.05)', padding: 16, borderRadius: 20, border: '1px solid rgba(16, 185, 129, 0.1)', margin: 0 }}>
+                                            <div style={{
+                                                marginBottom: 24,
+                                                display: 'grid',
+                                                gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 250px), 1fr))',
+                                                gap: 16
+                                            }}>
+                                                <div className="card" style={{ background: 'rgba(16, 185, 129, 0.05)', padding: 'clamp(12px, 3vw, 16px)', borderRadius: 20, border: '1px solid rgba(16, 185, 129, 0.1)', margin: 0 }}>
                                                     <div style={{ display: 'flex', alignItems: 'center', gap: 8, color: '#10B981', marginBottom: 10 }}>
                                                         <Icon name="activity" size={16} />
                                                         <div style={{ fontSize: 11, fontWeight: 800 }}>{t.kf_ai_engine}</div>
@@ -4416,7 +4655,7 @@
                                                         {t.kf_btn_resource}
                                                     </button>
                                                 </div>
-                                                <div className="card" style={{ background: 'rgba(66, 133, 244, 0.05)', padding: 16, borderRadius: 20, border: '1px solid rgba(66, 133, 244, 0.1)', margin: 0 }}>
+                                                <div className="card" style={{ background: 'rgba(66, 133, 244, 0.05)', padding: 'clamp(12px, 3vw, 16px)', borderRadius: 20, border: '1px solid rgba(66, 133, 244, 0.1)', margin: 0 }}>
                                                     <div style={{ display: 'flex', alignItems: 'center', gap: 8, color: '#4285F4', marginBottom: 10 }}>
                                                         <Icon name="search" size={16} />
                                                         <div style={{ fontSize: 11, fontWeight: 800 }}>{t.kf_google_insight}</div>
@@ -4431,7 +4670,7 @@
                                             </div>
 
                                             {/* Detailed Analysis Section */}
-                                            <div style={{ background: 'rgba(255,255,255,0.03)', padding: 24, borderRadius: 24, border: '1px solid var(--border)' }}>
+                                            <div style={{ background: 'rgba(255,255,255,0.03)', padding: 'clamp(16px, 4vw, 24px)', borderRadius: 24, border: '1px solid var(--border)' }}>
                                                 <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 16 }}>
                                                     <Icon name="clipboard-check" color="var(--primary)" size={18} />
                                                     <div style={{ fontSize: 13, fontWeight: 800, color: 'white' }}>{t.kf_solution_title}</div>
@@ -4488,7 +4727,7 @@
             );
         };
 
-        const GroupDetailView = ({ group, currentUser, onClose, allMembers, onUpdateGroup, onToggleFriend, t }) => {
+        const GroupDetailView = ({ group, currentUser, onClose, allMembers, onUpdateGroup, onToggleFriend, t, onTagClick }) => {
             const isAdmin = group.admins && group.admins.includes(currentUser);
             const [activeTab, setActiveTab] = useState('chat'); // chat, anggota, media
             const [msg, setMsg] = useState('');
@@ -4707,7 +4946,19 @@
                                                 </button>
                                             )}
                                             {isAdmin && m.name !== currentUser && (
-                                                <button onClick={() => handleRemoveMember(m.id)} style={{ padding: '6px 10px', background: 'rgba(239, 68, 68, 0.2)', color: '#ef4444', border: 'none', borderRadius: 6, fontSize: 11, cursor: 'pointer' }}>Hapus</button>
+                                                <button onClick={() => handleRemoveMember(m.id)} style={{
+                                                    padding: '8px',
+                                                    background: 'rgba(239, 68, 68, 0.15)',
+                                                    color: '#ef4444',
+                                                    border: 'none',
+                                                    borderRadius: 8,
+                                                    cursor: 'pointer',
+                                                    display: 'flex',
+                                                    alignItems: 'center',
+                                                    justifyContent: 'center'
+                                                }} title="Hapus dari Grup">
+                                                    <Icon name="trash-2" size={16} />
+                                                </button>
                                             )}
                                         </div>
                                     </div>
@@ -4778,7 +5029,7 @@
                                                     padding: '8px 12px', borderRadius: 12,
                                                     color: 'white', fontSize: 13
                                                 }}>
-                                                    {m.text.split(' ').map((w, i) => w.startsWith('@') ? <span key={i} style={{ color: '#fbbf24', fontWeight: 'bold' }}>{w} </span> : w + ' ')}
+                                                    {renderTextWithMentions(m.text, onTagClick)}
                                                     {m.attachment && (
                                                         <div onClick={() => downloadFile(m.attachment.data, m.attachment.name)} style={{ marginTop: 8, padding: 8, background: 'rgba(0,0,0,0.2)', borderRadius: 6, display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer' }}>
                                                             <Icon name="file" size={16} />
@@ -4856,7 +5107,10 @@
         };
 
         // --- Anggota (Membership & Friends) Screen ---
-        const Anggota = ({ isPrivateMode, registeredUsers = [], onNavigate, userName, friends = [], onUpdateFriends, t }) => {
+        const Anggota = ({ isPrivateMode, registeredUsers = [], onNavigate, userName, friends = [], onUpdateFriends, t, onStartChat, onTagClick }) => {
+            const safeRegisteredUsers = Array.isArray(registeredUsers) ? registeredUsers : [];
+            const safeFriends = Array.isArray(friends) ? friends : [];
+
             const [searchTerm, setSearchTerm] = useState('');
             const [activeTab, setActiveTab] = useState('semua'); // semua, teman, grup
             const [selectedMember, setSelectedMember] = useState(null);
@@ -4868,18 +5122,12 @@
 
             // Transform Registered Users to Member Format
             const [allMembers, setAllMembers] = useState(() => {
-                // Base Demo Members (Only used if no real users exist to avoid empty state)
-                const demoMembers = [
-                    { id: 101, name: 'Budi Santoso', role: 'IT Support Senior', status: 'Online', isFriend: true, email: 'budi.s@mrtech.com', items: 23, image: 'https://i.pravatar.cc/150?u=1', isPrivate: false, weeklyStats: [4, 2, 6, 8, 2, 9, 14] },
-                    { id: 102, name: 'Siti Aminah', role: 'Database Admin', status: 'Baru Bergabung', isFriend: false, email: 'siti.a@mrtech.com', items: 5, image: 'https://i.pravatar.cc/150?u=2', isPrivate: true, weeklyStats: [1, 2, 3, 4, 1, 2, 1] }
-                ];
-
-                const realMembers = registeredUsers.map(u => ({
+                const realMembers = safeRegisteredUsers.map(u => ({
                     id: u.id,
                     name: u.name,
                     role: u.role || 'User Baru',
                     status: 'Online',
-                    isFriend: (friends || []).includes(u.id),
+                    isFriend: safeFriends.includes(u.id),
                     email: u.email || 'user@local.com',
                     items: u.items || 1, // Persist items if possible, else 1
                     image: `https://ui-avatars.com/api/?name=${encodeURIComponent(u.name)}&background=random`,
@@ -4887,28 +5135,33 @@
                     weeklyStats: Array.from({ length: 7 }, () => Math.floor(Math.random() * 10))
                 }));
 
-                // Combine: Prefer Real Members, fallback to Demo if empty
-                // Also ensures no ID collision if possible
                 let combined = [...realMembers];
-                if (combined.length === 0) combined = [...demoMembers];
 
                 // Add specific demo members ONLY if they don't exist by name (simple de-dupe)
-                demoMembers.forEach(dm => {
+                DEMO_MEMBERS.forEach(dm => {
                     if (!combined.some(c => c.name === dm.name)) {
-                        combined.push(dm);
+                        combined.push({
+                            ...dm,
+                            items: Math.floor(Math.random() * 30),
+                            isPrivate: false,
+                            weeklyStats: Array.from({ length: 7 }, () => Math.floor(Math.random() * 15))
+                        });
                     }
                 });
 
-                return combined.map(m => ({ ...m, isFriend: (friends || []).includes(m.id) })).sort((a, b) => b.items - a.items);
+                return combined.map(m => ({ ...m, isFriend: safeFriends.includes(m.id) })).sort((a, b) => b.items - a.items);
             });
 
-            // Simulate updating stats automatically
+            // Sync members friendship status when friends prop updates
             useEffect(() => {
                 setAllMembers(prev => prev.map(m => ({
                     ...m,
-                    isFriend: (friends || []).includes(m.id)
+                    isFriend: safeFriends.includes(m.id)
                 })));
-            }, [friends]);
+            }, [safeFriends]);
+
+
+
 
             const filteredMembers = allMembers.filter(m => {
                 const matchesSearch = m.name.toLowerCase().includes(searchTerm.toLowerCase()) || m.role.toLowerCase().includes(searchTerm.toLowerCase());
@@ -4926,9 +5179,14 @@
             };
 
             const handleRemoveUser = (member) => {
-                if (confirm(`Hapus ${member.name} dari daftar anggota?`)) {
+                if (confirm(t.member_confirm_delete.replace('{name}', member.name) || `Hapus ${member.name} dari daftar anggota?`)) {
                     setAllMembers(prev => prev.filter(m => m.id !== member.id));
-                    setSelectedMember(null); // Close modal if open
+                    // Also remove from friends if exists
+                    const newFriends = safeFriends.filter(id => id !== member.id);
+                    if (newFriends.length !== safeFriends.length) {
+                        onUpdateFriends(newFriends);
+                    }
+                    setSelectedMember(null);
                 }
             };
 
@@ -4996,18 +5254,24 @@
 
                                 {/* Menu Tabs */}
                                 <div style={{ display: 'flex', gap: 24, marginTop: 20, overflowX: 'auto', paddingBottom: 4 }}>
-                                    {['all', 'friend', 'group', 'contribution'].map(t_key => {
-                                        const label = t[`member_tab_${t_key}`];
+                                    {[
+                                        { id: 'semua', tKey: 'all' },
+                                        { id: 'teman', tKey: 'friend' },
+                                        { id: 'grup', tKey: 'group' },
+                                        { id: 'kontribusi', tKey: 'contribution' }
+                                    ].map(tab => {
+                                        const label = t[`member_tab_${tab.tKey}`];
+                                        const isActive = activeTab === tab.id;
                                         return (
                                             <div
-                                                key={t_key}
-                                                onClick={() => setActiveTab(t_key)}
+                                                key={tab.id}
+                                                onClick={() => setActiveTab(tab.id)}
                                                 style={{
                                                     paddingBottom: 10,
                                                     cursor: 'pointer',
-                                                    borderBottom: (activeTab === t_key || (activeTab === 'semua' && t_key === 'all') || (activeTab === 'teman' && t_key === 'friend') || (activeTab === 'grup' && t_key === 'group') || (activeTab === 'kontribusi' && t_key === 'contribution')) ? '4px solid white' : '4px solid transparent',
+                                                    borderBottom: isActive ? '4px solid white' : '4px solid transparent',
                                                     fontWeight: 700,
-                                                    color: (activeTab === t_key || (activeTab === 'semua' && t_key === 'all') || (activeTab === 'teman' && t_key === 'friend') || (activeTab === 'grup' && t_key === 'group') || (activeTab === 'kontribusi' && t_key === 'contribution')) ? 'white' : 'rgba(255,255,255,0.6)',
+                                                    color: isActive ? 'white' : 'rgba(255,255,255,0.6)',
                                                     textTransform: 'capitalize',
                                                     fontSize: 14,
                                                     letterSpacing: 0.5
@@ -5133,9 +5397,23 @@
                                                                 border: 'none', borderRadius: 12,
                                                                 color: m.isFriend ? '#8b949e' : 'var(--primary)', cursor: 'pointer'
                                                             }}
+                                                            title={m.isFriend ? "Hapus Pertemanan" : "Tambah Teman"}
                                                         >
-                                                            <Icon name={m.isFriend ? "user-check" : "user-plus"} size={18} />
+                                                            <Icon name={m.isFriend ? "user-minus" : "user-plus"} size={18} />
                                                         </button>
+                                                        {(userName === 'Muhammad Ramadhan' || userName === 'Admin' || m.role === 'User Baru') && (
+                                                            <button
+                                                                onClick={(e) => { e.stopPropagation(); handleRemoveUser(m); }}
+                                                                style={{
+                                                                    padding: '10px', background: 'rgba(239, 68, 68, 0.1)',
+                                                                    border: 'none', borderRadius: 12,
+                                                                    color: '#EF4444', cursor: 'pointer'
+                                                                }}
+                                                                title="Hapus Anggota"
+                                                            >
+                                                                <Icon name="trash-2" size={18} />
+                                                            </button>
+                                                        )}
                                                     </div>
                                                 </div>
                                             ))}
@@ -5158,11 +5436,11 @@
                                                 <div style={{ width: 50, height: 50, borderRadius: '50%', border: '3px solid #C0C0C0', margin: '0 auto 8px', overflow: 'hidden' }}>
                                                     <img src={allMembers[2]?.image} style={{ width: '100%', height: '100%' }} />
                                                 </div>
-                                                <div style={{ fontSize: 12, fontWeight: 700, marginBottom: 4 }}>{allMembers[2]?.name.split(' ')[0]}</div>
+                                                <div style={{ fontSize: 12, fontWeight: 700, marginBottom: 4 }}>{allMembers[2]?.name?.split(' ')[0] || 'Member'}</div>
                                                 <div style={{ height: 80, background: 'linear-gradient(to top, #C0C0C0, rgba(192,192,192,0.2))', borderRadius: '8px 8px 0 0', display: 'flex', alignItems: 'flex-end', justifyContent: 'center', paddingBottom: 8 }}>
                                                     <span style={{ fontSize: 20, fontWeight: 800 }}>2</span>
                                                 </div>
-                                                <div style={{ fontSize: 11, color: '#C0C0C0', marginTop: 4, fontWeight: 600 }}>{allMembers[2]?.items * 15} {t.profile_stat_points}</div>
+                                                <div style={{ fontSize: 11, color: '#C0C0C0', marginTop: 4, fontWeight: 600 }}>{allMembers[2] ? allMembers[2].items * 15 : 0} {t.profile_stat_points}</div>
                                             </div>
 
                                             {/* 1st Place */}
@@ -5175,11 +5453,11 @@
                                                         <Icon name="award" size={24} color="#FFD700" fill="#FFD700" />
                                                     </div>
                                                 </div>
-                                                <div style={{ fontSize: 13, fontWeight: 800, marginBottom: 4, color: '#FFD700' }}>{allMembers[0]?.name.split(' ')[0]}</div>
+                                                <div style={{ fontSize: 13, fontWeight: 800, marginBottom: 4, color: '#FFD700' }}>{allMembers[0]?.name?.split(' ')[0] || 'Member'}</div>
                                                 <div style={{ height: 110, background: 'linear-gradient(to top, #FFD700, rgba(255,215,0,0.2))', borderRadius: '8px 8px 0 0', display: 'flex', alignItems: 'flex-end', justifyContent: 'center', paddingBottom: 8 }}>
                                                     <span style={{ fontSize: 24, fontWeight: 800 }}>1</span>
                                                 </div>
-                                                <div style={{ fontSize: 12, color: '#FFD700', marginTop: 4, fontWeight: 700 }}>{allMembers[0]?.items * 20} {t.profile_stat_points}</div>
+                                                <div style={{ fontSize: 12, color: '#FFD700', marginTop: 4, fontWeight: 700 }}>{allMembers[0] ? allMembers[0].items * 20 : 0} {t.profile_stat_points}</div>
                                             </div>
 
                                             {/* 3rd Place */}
@@ -5187,11 +5465,11 @@
                                                 <div style={{ width: 50, height: 50, borderRadius: '50%', border: '3px solid #CD7F32', margin: '0 auto 8px', overflow: 'hidden' }}>
                                                     <img src={allMembers[4]?.image} style={{ width: '100%', height: '100%' }} />
                                                 </div>
-                                                <div style={{ fontSize: 12, fontWeight: 700, marginBottom: 4 }}>{allMembers[4]?.name.split(' ')[0]}</div>
+                                                <div style={{ fontSize: 12, fontWeight: 700, marginBottom: 4 }}>{allMembers[4]?.name?.split(' ')[0] || 'Member'}</div>
                                                 <div style={{ height: 60, background: 'linear-gradient(to top, #CD7F32, rgba(205,127,50,0.2))', borderRadius: '8px 8px 0 0', display: 'flex', alignItems: 'flex-end', justifyContent: 'center', paddingBottom: 8 }}>
                                                     <span style={{ fontSize: 20, fontWeight: 800 }}>3</span>
                                                 </div>
-                                                <div style={{ fontSize: 11, color: '#CD7F32', marginTop: 4, fontWeight: 600 }}>{allMembers[4]?.items * 10} {t.profile_stat_points}</div>
+                                                <div style={{ fontSize: 11, color: '#CD7F32', marginTop: 4, fontWeight: 600 }}>{allMembers[4] ? allMembers[4].items * 10 : 0} {t.profile_stat_points}</div>
                                             </div>
                                         </div>
 
@@ -5357,13 +5635,13 @@
                                                     {selectedMember.isFriend ? t.member_btn_remove_friend : t.member_btn_add_friend}
                                                 </button>
                                                 <div style={{ display: 'flex', gap: 12 }}>
-                                                    <button onClick={() => { if (onNavigate) onNavigate('pesan'); setSelectedMember(null); }} style={{ flex: 1, padding: '14px', background: '#21262d', border: 'none', borderRadius: 14, color: 'white', fontSize: 14, fontWeight: 700, cursor: 'pointer' }}>{t.member_btn_chat}</button>
+                                                    <button onClick={() => { if (onStartChat) onStartChat(selectedMember); if (onNavigate) onNavigate('pesan'); setSelectedMember(null); }} style={{ flex: 1, padding: '14px', background: '#21262d', border: 'none', borderRadius: 14, color: 'white', fontSize: 14, fontWeight: 700, cursor: 'pointer' }}>{t.member_btn_chat}</button>
                                                     <button onClick={() => { handleRemoveUser(selectedMember); setSelectedMember(null); }} style={{ flex: 1, padding: '14px', background: 'rgba(248, 81, 73, 0.1)', border: 'none', borderRadius: 14, color: '#f85149', fontSize: 14, fontWeight: 700, cursor: 'pointer' }}>{t.member_btn_delete_user}</button>
                                                 </div>
                                             </div>
                                         </div>
 
-                                        <div onClick={() => setSelectedMember(null)} style={{ position: 'absolute', top: 14, right: 14, pading: 8, color: 'white', cursor: 'pointer', opacity: 0.7 }}>
+                                        <div onClick={() => setSelectedMember(null)} style={{ position: 'absolute', top: 14, right: 14, padding: 8, color: 'white', cursor: 'pointer', opacity: 0.7 }}>
                                             <Icon name="x" size={24} />
                                         </div>
                                     </div>
@@ -5400,8 +5678,8 @@
                                     </div>
                                 </div>
                             )}
-                        </div>
-                    </Background3D>
+                        </div >
+                    </Background3D >
                     {/* Group Detail View Overlay - Movable Overlay */}
                     {
                         selectedGroup && (
@@ -5422,6 +5700,7 @@
                                     }}
                                     onToggleFriend={toggleFriendStatus}
                                     t={t}
+                                    onTagClick={onTagClick}
                                 />
                             </div>
                         )
@@ -5813,19 +6092,38 @@
             const [userName, setUserName] = useState(() => redis.get('userName', ''));
             const [userBio, setUserBio] = useState(() => redis.get('userBio', 'Senior System Admin'));
             const [userPhoto, setUserPhoto] = useState(() => redis.get('userPhoto', 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=200'));
-
-            const t = getT(appLang);
-
             const [activityLog, setActivityLog] = useState(() => redis.get('activityLog', [
-                { id: 1, action: t.activity_login, timestamp: Date.now() - 60000 },
-                { id: 2, action: t.activity_profile, timestamp: Date.now() - 300000 },
-                { id: 3, action: t.activity_notif, timestamp: Date.now() - 3600000 }
+                { id: 1, action: 'Login ke sistem', timestamp: Date.now() - 60000 },
+                { id: 2, action: 'Membuka menu Profil', timestamp: Date.now() - 300000 },
+                { id: 3, action: 'Melihat notifikasi', timestamp: Date.now() - 3600000 }
             ]));
             const [userRole, setUserRole] = useState(() => redis.get('userRole', 'Admin')); // Default: Admin
             const [isPrivate, setIsPrivate] = useState(() => redis.get('isPrivate', false));
             const [userFriends, setUserFriends] = useState(() => redis.get('userFriends', []));
             const [selectedBidang, setSelectedBidang] = useState(null);
+            const [chatTarget, setChatTarget] = useState(null); // State for starting new chat
+            const [selectedProfile, setSelectedProfile] = useState(null); // Global profile viewer
 
+            const t = getT(appLang);
+
+            const handleTagClick = (name) => {
+                if (!name) return;
+                const searchName = name.toLowerCase();
+                const found = allUsers.find(u => u.name.toLowerCase() === searchName) ||
+                    DEMO_MEMBERS.find(m => m.name.toLowerCase() === searchName) ||
+                    allUsers.find(u => u.name.toLowerCase().includes(searchName)) ||
+                    DEMO_MEMBERS.find(m => m.name.toLowerCase().includes(searchName));
+
+                if (found) {
+                    setSelectedProfile({
+                        ...found,
+                        items: found.items || Math.floor(Math.random() * 20),
+                        role: found.role || 'Member',
+                        status: found.status || 'Active',
+                        weeklyStats: found.weeklyStats || [2, 5, 3, 8, 4, 6, 9]
+                    });
+                }
+            };
 
             // Pull To Refresh States
             const [ptrProgress, setPtrProgress] = useState(0);
@@ -5873,8 +6171,8 @@
                         setIsPtrRefreshing(false);
                         setPtrProgress(0);
                         addNotification({
-                            title: t.data_refreshed,
-                            desc: t.data_sync_success,
+                            title: 'Data Diperbarui',
+                            desc: 'Konten aplikasi telah berhasil disinkronkan.',
                             type: 'info',
                             target: 'home'
                         });
@@ -5889,11 +6187,11 @@
             const [knowledge, setKnowledge] = useState(() => redis.get('knowledge', KNOWLEDGE_BASE));
             const [categoryData, setCategoryData] = useState(() => redis.get('categoryData', {}));
             const [notifications, setNotifications] = useState(() => redis.get('notifications', [
-                { id: 1, title: t.auth_welcome, desc: t.data_sync_success, time: t.just_now, type: 'info', target: 'home', unread: false },
-                { id: 2, title: t.notif_discuss, desc: `Budi Santoso ${t.help_faq_a2.includes('enkripsi') ? 'membalas komentar Anda' : 'replied to your comment'}`, time: t.mins_ago.replace('{n}', '10'), type: 'message', target: 'pesan', unread: true },
-                { id: 3, title: 'Level Up!', desc: t.notif_achievement, time: t.hours_ago.replace('{n}', '1'), type: 'award', target: 'profil', unread: true },
-                { id: 4, title: 'Maintenance Server', desc: t.notif_system, time: t.hours_ago.replace('{n}', '3'), type: 'info', target: 'home', unread: false },
-                { id: 5, title: 'Diskusi Panas 🔥', desc: t.knowledge_trending, time: t.hours_ago.replace('{n}', '5'), type: 'message', target: 'bidang', targetId: 'Hardware', unread: false }
+                { id: 1, title: 'Selamat Datang', desc: 'Sistem siap digunakan.', time: 'Baru saja', type: 'info', target: 'home', unread: false },
+                { id: 2, title: 'Pesan Baru', desc: 'Budi Santoso membalas komentar Anda.', time: '10m lalu', type: 'message', target: 'pesan', unread: true },
+                { id: 3, title: 'Level Up!', desc: 'Selamat! Anda naik ke Level 5 (Active Member).', time: '1j lalu', type: 'award', target: 'profil', unread: true },
+                { id: 4, title: 'Maintenance Server', desc: 'Server akan maintenance pada pukul 00:00.', time: '3j lalu', type: 'info', target: 'home', unread: false },
+                { id: 5, title: 'Diskusi Panas 🔥', desc: 'Topik "Hardware" sedang ramai dibahas user lain.', time: '5j lalu', type: 'message', target: 'bidang', targetId: 'Hardware', unread: false }
             ]));
 
             // Registered Users State
@@ -5909,7 +6207,6 @@
                 redis.set('userName', userName);
                 redis.set('userBio', userBio);
                 redis.set('userPhoto', userPhoto);
-                redis.set('userPhoto', userPhoto);
                 redis.set('activityLog', activityLog);
                 redis.set('userRole', userRole);
                 redis.set('isPrivate', isPrivate);
@@ -5917,7 +6214,7 @@
                 redis.set('knowledge', knowledge);
                 redis.set('categoryData', categoryData);
                 redis.set('notifications', notifications);
-            }, [screen, tab, userName, userBio, userPhoto, activityLog, userRole, isPrivate, userFriends, knowledge, categoryData, notifications]);
+            }, [screen, tab, appLang, theme, timeZone, userName, userBio, userPhoto, activityLog, userRole, isPrivate, userFriends, knowledge, categoryData, notifications]);
 
             // Browser History & Keyboard Navigation Handler
             const isInternalNav = useRef(false);
@@ -6006,8 +6303,9 @@
             };
 
             const getCategoryData = (name) => {
-                if (!name) return { discussions: [], chatMessages: [], materials: [] };
+                if (!name) return { discussions: [], chatMessages: [], materials: [], members: [] };
                 return categoryData[name] || {
+                    members: DEMO_MEMBERS.map(m => ({ ...m, id: m.id, role: m.role, name: m.name, image: m.image })), // Initialize members with demo data
                     discussions: [
                         { user: "Rudi Tabuti", title: `Optimasi performa di ${name}`, tags: [name], comments: 5 },
                         { user: "Sari Roti", title: `Standard Operating Procedure (SOP) ${name}`, tags: ["Work", name], comments: 2 }
@@ -6027,6 +6325,8 @@
                 return data.discussions.length;
             };
 
+
+
             const handleOnboardingNext = () => {
                 if (onboardingStep < 2) {
                     setOnboardingStep(onboardingStep + 1);
@@ -6038,7 +6338,7 @@
             const handleLogin = (authData) => {
                 // Support legacy simple string call if any
                 if (typeof authData === 'string') {
-                    if (!authData) { alert(t.auth_err_name_required || 'Mohon isi nama Anda'); return; }
+                    if (!authData) { alert('Mohon isi nama Anda'); return; }
                     setUserName(authData);
                     setScreen('main');
                     redis.set('userName', authData);
@@ -6121,16 +6421,16 @@
                         // Precise Error Handling
                         const emailExists = users.some(u => u.email === email);
                         if (emailExists) {
-                            alert(t.auth_err_wrong_pass || 'Password salah! Coba lagi.');
+                            alert('Password salah! Coba lagi.');
                         } else {
-                            alert(t.auth_err_email_unregistered || 'Email belum terdaftar! Mohon pastikan email benar atau daftar akun baru.');
+                            alert('Email belum terdaftar! Mohon pastikan email benar atau daftar akun baru.');
                         }
                     }
                 }
             };
 
             const handleLogout = () => {
-                if (confirm(t.auth_confirm_logout || 'Apakah Anda yakin ingin keluar?')) {
+                if (confirm('Apakah Anda yakin ingin keluar?')) {
                     // Direct cleanup to prevent state race conditions
                     // Clear Session Data ONLY (Preserve users_db)
                     redis.del('userName');
@@ -6183,7 +6483,7 @@
                                 onMouseOver={(e) => e.currentTarget.style.transform = 'scale(1.05)'}
                                 onMouseOut={(e) => e.currentTarget.style.transform = 'scale(1)'}
                             >
-                                <img src="MR.png" alt="MR Tech" style={{
+                                <img src="WhatsApp Image 2026-02-01 at 20.04.56.jpeg" alt="MR Tech" style={{
                                     width: '100%',
                                     height: '100%',
                                     objectFit: 'contain',
@@ -6250,12 +6550,15 @@
                                         categoryData={getCategoryData(selectedBidang.name)}
                                         onUpdateCategoryData={handleUpdateCategoryData}
                                         addNotification={addNotification}
+                                        onTagClick={handleTagClick}
                                         registeredMembers={allUsers}
+                                        t={t}
                                     />
                                 ) : (
                                     <Home
                                         userName={userName}
-                                        userRole={userRole} // Pass role to Home
+                                        userRole={userRole}
+                                        handleTagClick={handleTagClick}
                                         checkPermission={(action) => checkPermission(userRole, action)} // Pass checker
                                         onCreateQuestion={() => {
                                             if (checkPermission(userRole, 'create_user')) {
@@ -6288,7 +6591,9 @@
                                         categoryData={getCategoryData(selectedBidang.name)}
                                         onUpdateCategoryData={handleUpdateCategoryData}
                                         addNotification={addNotification}
+                                        onTagClick={handleTagClick}
                                         registeredMembers={allUsers}
+                                        t={t}
                                     />
                                 ) : (
                                     <Bidang
@@ -6300,29 +6605,47 @@
                                 )}
                         </div>
 
-                        {/* Persistent Tabs (Instant Access) */}
-                        <div style={{ display: tab === 'pesan' ? 'block' : 'none' }}> <Pesan userName={userName} onNavigate={(target) => setTab(target)} t={t} /></div>
+                        {/* Pesan Layer */}
+                        <div style={{ display: tab === 'pesan' ? 'block' : 'none' }}>
+                            <Pesan
+                                userName={userName}
+                                t={t}
+                                onNavigate={setTab}
+                                newChatTarget={chatTarget}
+                                onTagClick={handleTagClick}
+                                onClearChatTarget={() => setChatTarget(null)}
+                                registeredUsers={allUsers}
+                                friends={userFriends}
+                            />
+                        </div>
+
+                        {/* Anggota Layer */}
                         <div style={{ display: tab === 'anggota' ? 'block' : 'none' }}>
                             <Anggota
-                                sx={{ display: tab === 'anggota' ? 'block' : 'none' }}
                                 isPrivateMode={isPrivate}
                                 registeredUsers={allUsers}
-                                onNavigate={(target) => setTab(target)}
                                 userName={userName}
-                                friends={userFriends}
-                                onUpdateFriends={setUserFriends}
                                 t={t}
+                                friends={userFriends}
+                                onNavigate={setTab}
+                                onUpdateFriends={setUserFriends}
+                                onStartChat={(user) => { setChatTarget(user); setTab('pesan'); }}
+                                onTagClick={handleTagClick}
                             />
                         </div>
+
+                        {/* Notif Layer */}
                         <div style={{ display: tab === 'notif' ? 'block' : 'none' }}>
                             <Notifikasi
-                                onNavigate={(target) => setTab(target)}
                                 notifications={notifications}
-                                onNotificationClick={handleNotificationClick}
                                 setNotifications={setNotifications}
+                                onNotificationClick={handleNotificationClick}
                                 t={t}
+                                onNavigate={setTab}
                             />
                         </div>
+
+                        {/* Profil Layer */}
                         <div style={{ display: tab === 'profil' ? 'block' : 'none' }}>
                             <Profil
                                 userName={userName}
@@ -6390,6 +6713,51 @@
                             <span>{t.tab_profil}</span>
                         </div>
                     </div >
+
+                    {/* Global Profile Viewer Modal */}
+                    {selectedProfile && (
+                        <div style={{
+                            position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
+                            background: 'rgba(0,0,0,0.85)', zIndex: 15000,
+                            display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20
+                        }} onClick={() => setSelectedProfile(null)}>
+                            <div className="animate" style={{
+                                width: '100%', maxWidth: 360, background: '#161b22',
+                                borderRadius: 28, border: '1px solid rgba(255,255,255,0.1)', overflow: 'hidden',
+                                position: 'relative', boxShadow: '0 25px 50px -12px rgba(0,0,0,0.5)'
+                            }} onClick={e => e.stopPropagation()}>
+                                <div style={{ height: 100, background: 'linear-gradient(to right, #6366f1, #ec4899)' }}></div>
+                                <div style={{ textAlign: 'center', marginTop: -50 }}>
+                                    <div style={{ width: 100, height: 100, borderRadius: '50%', border: '5px solid #161b22', margin: '0 auto', overflow: 'hidden', background: '#21262d' }}>
+                                        <img src={selectedProfile.image || `https://ui-avatars.com/api/?name=${encodeURIComponent(selectedProfile.name)}&background=random`} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                                    </div>
+                                </div>
+                                <div style={{ padding: '20px 24px 30px', textAlign: 'center' }}>
+                                    <h2 style={{ fontSize: 22, fontWeight: 800, color: 'white', marginBottom: 4 }}>{selectedProfile.name}</h2>
+                                    <div style={{ color: '#8b949e', fontSize: 13, fontWeight: 500 }}>{selectedProfile.role}</div>
+
+                                    <div style={{ margin: '24px auto', display: 'flex', justifyContent: 'center', gap: 30 }}>
+                                        <div style={{ textAlign: 'center' }}>
+                                            <div style={{ fontWeight: 800, fontSize: 18, color: 'white' }}>{selectedProfile.items || 0}</div>
+                                            <div style={{ fontSize: 10, color: '#8b949e', fontWeight: 600 }}>KONTRIBUSI</div>
+                                        </div>
+                                        <div style={{ textAlign: 'center' }}>
+                                            <div style={{ fontWeight: 800, fontSize: 18, color: '#3fb950' }}>{selectedProfile.status}</div>
+                                            <div style={{ fontSize: 10, color: '#8b949e', fontWeight: 600 }}>STATUS</div>
+                                        </div>
+                                    </div>
+
+                                    <div style={{ display: 'flex', gap: 12, marginTop: 20 }}>
+                                        <button onClick={() => { setChatTarget(selectedProfile); setTab('pesan'); setSelectedProfile(null); }} style={{ flex: 1, padding: '14px', background: 'var(--primary)', border: 'none', borderRadius: 14, color: 'white', fontSize: 14, fontWeight: 700, cursor: 'pointer' }}>Kirim Pesan</button>
+                                        <button onClick={() => setSelectedProfile(null)} style={{ flex: 1, padding: '14px', background: '#21262d', border: 'none', borderRadius: 14, color: 'white', fontSize: 14, fontWeight: 700, cursor: 'pointer' }}>Tutup</button>
+                                    </div>
+                                </div>
+                                <div onClick={() => setSelectedProfile(null)} style={{ position: 'absolute', top: 14, right: 14, padding: 8, color: 'white', cursor: 'pointer', opacity: 0.7 }}>
+                                    <Icon name="x" size={24} />
+                                </div>
+                            </div>
+                        </div>
+                    )}
                 </div >
             );
         }
