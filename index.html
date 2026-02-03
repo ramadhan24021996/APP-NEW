@@ -246,7 +246,6 @@
             padding-bottom: 120px;
             /* Space for bottom nav */
             position: relative;
-            scrollbar-width: none !important;
         }
 
 
@@ -272,14 +271,14 @@
             /* Mobile Default */
 
             /* Visuals */
-            scrollbar-width: none !important;
         }
 
 
         /* Desktop Scrollbar Styling (Hidden) */
         @media (min-width: 1024px) {
             .content-scroll-area {
-                max-height: calc(100vh - 420px);
+                max-height: none;
+                overflow: visible;
             }
         }
 
@@ -566,7 +565,6 @@
             flex-direction: column;
             z-index: 1000;
             overflow-y: auto;
-            scrollbar-width: none !important;
         }
 
 
@@ -4718,6 +4716,25 @@
                                     onMouseOut={e => e.currentTarget.style.transform = 'translateY(0)'}
                                 >
                                     <Icon name="zap" size={14} /> ChatGPT
+                                <button
+                                    onClick={() => {
+                                        setSearchSource('deep-ai');
+                                        handleSearchAction();
+                                    }}
+                                    style={{
+                                        flex: 1, padding: '6px 10px',
+                                        background: 'linear-gradient(135deg, #8B5CF6, #6D28D9)',
+                                        color: 'white', borderRadius: 12,
+                                        border: 'none', fontSize: 11, fontWeight: 700,
+                                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                        gap: 10, cursor: 'pointer',
+                                        boxShadow: '0 8px 20px rgba(139,92,246,0.3)',
+                                        transition: 'transform 0.2s'
+                                    }}
+                                    onMouseOver={e => e.currentTarget.style.transform = 'translateY(-2px)'}
+                                    onMouseOut={e => e.currentTarget.style.transform = 'translateY(0)'}
+                                >
+                                    <Icon name="brain" size={14} /> Deep-AI
                                 </button>
                             </div>
                         </header>
