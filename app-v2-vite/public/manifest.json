@@ -1,0 +1,21 @@
+{
+  "name": "Belajar Bersama",
+  "short_name": "BB Tech",
+  "description": "Professional Cross-Platform IT Support App",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#0a0c10",
+  "theme_color": "#6366f1",
+  "icons": [
+    {
+      "src": "RAMA.jpeg",
+      "sizes": "192x192",
+      "type": "image/jpeg"
+    },
+    {
+      "src": "RAMA.jpeg",
+      "sizes": "512x512",
+      "type": "image/jpeg"
+    }
+  ]
+}
