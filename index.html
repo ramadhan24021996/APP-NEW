@@ -52,6 +52,7 @@
             --radius-lg: 24px;
             --radius-md: 16px;
             --gap-responsive: clamp(16px, 4vw, 32px);
+            --nav-height: 100px;
         }
 
         * {
@@ -410,11 +411,12 @@
         .page-container-3d {
             position: relative;
             height: 100vh;
-            overflow: hidden !important;
+            overflow-y: auto !important;
+            overflow-x: hidden;
             background: #0a0c10;
             scroll-behavior: smooth;
-            padding: 0;
-            margin: 0;
+            padding-bottom: var(--nav-height);
+            -webkit-overflow-scrolling: touch;
         }
 
 
@@ -851,6 +853,10 @@
                 height: 100vh !important;
             }
 
+            :root {
+                --nav-height: 40px;
+            }
+
             .bottom-nav {
                 display: none;
             }
@@ -999,13 +1005,6 @@
         }
 
         @media (max-width: 768px) {
-            .page-container-3d {
-                overflow-y: auto !important;
-                height: 100vh;
-                padding-bottom: 120px;
-                -webkit-overflow-scrolling: touch;
-            }
-
             .db-layout {
                 flex-direction: column;
             }
